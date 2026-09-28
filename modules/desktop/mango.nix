@@ -1,18 +1,10 @@
 { self, inputs, ... }: {
-  # MangoWM (mangowc): compositor Wayland baseado no dwl, com IPC, animações
-  # e layouts próprios. Tudo o que estava em binds.conf/config.conf/input.conf/
-  # output.conf/system.conf/dms/*.conf (mango.zip) foi juntado aqui num único
-  # arquivo, igual ao hyprland.nix — o módulo Nix gera o config.conf sozinho,
-  # não precisamos mais dos `source=./dms/...` manuais.
-  #
-  # Tudo que é do DMS (binds de spotlight/powermenu/screenshot/volume, cores,
-  # layout e a window rule do próprio DMS) fica em shells/dms.nix, não aqui.
-  # Os binds da Marea (search, lock, gravação) ficam em shells/marea.nix — as
-  # duas são shells que rodam por cima do compositor, não compositores em si.
-  # Aqui só entram as configurações "nativas" do MangoWM (input, monitores,
-  # tags e os binds de janela que não dependem de DMS nem Marea).
-  flake.nixosModules.mangowm = { lib, username, ... }: {
+  # Sessão Mango: compositor, Home Manager, DMS e atalhos da Marea.
+  # As regras de monitor ficam em cada host.
+  flake.nixosModules.mango = { lib, pkgs, username, ... }: {
+    imports = [ inputs.mango.nixosModules.mango self.nixosModules.dms ];
     programs.mango.enable = true;
+    environment.systemPackages = [ pkgs.yazi ];
 
     home-manager.users.${username} = {
       imports = [ inputs.mango.hmModules.mango ];
@@ -38,19 +30,6 @@
             "XDG_CURRENT_DESKTOP,mango"
             "XDG_SESSION_TYPE,wayland"
           ];
-
-          # ------------------
-          # ---- MONITORS ----
-          # ------------------
-          monitorrule = [
-            "name:^HDMI-A-1$,width:1920,height:1080,x:0,y:0,scale:1,rr:1"
-            "name:^DP-3$,width:1920,height:1080,x:1080,y:0,scale:1,rr:0"
-            "name:^eDP-1$,width:1920,height:1080,x:1200,y:0,scale:1,rr:0"
-          ];
-
-          tagrule =
-            (map (i: "id:${toString i},monitor_name:HDMI-A-1,layout_name:vertical_scroller") (lib.range 1 9))
-            ++ (map (i: "id:${toString i},monitor_name:DP-3,layout_name:scroller") (lib.range 1 9));
 
           # ---------------------
           # ---- KEYBINDINGS ----
@@ -85,6 +64,9 @@
               "SUPER,home,focusmon,right"
               "SUPER+SHIFT,home,tagmon,right"
               "SUPER+CTRL,home,spawn,~/.config/mango/scripts/move-window-monitor-silent.sh"
+              "SUPER,space,spawn,marea search"
+              "SUPER,l,spawn,marea lock"
+              "SUPER+SHIFT,c,spawn,marea record_toggle"
             ]
             # Tags 1 a 9: ver, mover (tag) e mover em silêncio (tagsilent)
             ++ (map (i: "SUPER,${toString i},view,${toString i},0") (lib.range 1 9))
@@ -110,7 +92,7 @@
       };
 
       xdg.configFile."mango/scripts/move-window-monitor-silent.sh" = {
-        source = self + "/modules/features/scripts/move-window-monitor-silent.sh";
+        source = self + "/modules/desktop/scripts/move-window-monitor-silent.sh";
         executable = true;
       };
     };

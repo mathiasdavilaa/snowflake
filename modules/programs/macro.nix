@@ -11,12 +11,12 @@
 
     home-manager.users.${username}.home.file = {
       ".local/bin/mouse-position" = {
-        source = self + "/modules/features/scripts/mouse-position.sh";
+        source = self + "/modules/desktop/scripts/mouse-position.sh";
         executable = true;
       };
 
       ".local/bin/macro" = {
-        source = self + "/modules/features/scripts/macro.sh";
+        source = self + "/modules/desktop/scripts/macro.sh";
         executable = true;
       };
     };

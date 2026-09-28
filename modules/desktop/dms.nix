@@ -1,27 +1,12 @@
 { inputs, ... }: {
-  flake.nixosModules.dms = { config, lib, username, ... }: {
+  flake.nixosModules.dms = { username, ... }: {
     imports = [ inputs.dms.nixosModules.default ];
 
-    programs.dank-material-shell.enable = false;
+    programs.dank-material-shell.enable = true;
 
-    # ${username} só pode aparecer uma vez neste attrset (é um nome de
-    # atributo dinâmico — diferente de attrpath fixo, o Nix não mescla dois
-    # bindings dele no mesmo literal), por isso Hyprland e MangoWM ficam
-    # dentro do mesmo bloco abaixo em vez de dois `home-manager.users.${username}.…` separados.
+    # DMS é usado apenas na sessão Mango.
     home-manager.users.${username}.wayland.windowManager = {
-      # Binds do DMS no Hyprland (o pleamar-wm usa ~/.config/pleamar/keys.conf, não isto).
-      # Só entram quando o DMS está habilitado, para não deixar atalhos apontando para nada.
-      # Evitam as teclas da Marea (Super+Space/L/Print) e as suas (Q C M E V R P J S F6).
-      hyprland.settings.bind = lib.mkIf config.programs.dank-material-shell.enable [
-        "SUPER, D, exec, dms ipc call spotlight toggle"
-        "SUPER SHIFT, V, exec, dms ipc call clipboard toggle"
-        "SUPER, N, exec, dms ipc call notifications toggle"
-        "SUPER, X, exec, dms ipc call control-center toggle"
-        "SUPER, comma, exec, dms ipc call settings toggle"
-        "SUPER, Escape, exec, dms ipc call powermenu toggle"
-      ];
-
-      # Tudo que é do DMS no MangoWM fica aqui, não no mangowm.nix: o DMS é a
+      # O DMS é a
       # própria shell da sessão lá (`exec-once=dms run`), e as cores/layout/
       # window rule abaixo eram os dms/colors.conf, dms/layout.conf e
       # dms/windowrules.conf do zip original — todos marcados como

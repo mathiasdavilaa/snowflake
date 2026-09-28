@@ -161,8 +161,14 @@
             "$mainMod, V, togglefloating,"
             "$mainMod, R, exec, $menu"
             "$mainMod, P, pseudo,"
-            "$mainMod, J, togglesplit,"
+            "$mainMod, J, layoutmsg, togglesplit"
             "$mainMod, F6, exec, ~/.local/bin/macro"
+            "SUPER, Space, exec, marea search"
+            "SUPER, L, exec, marea lock"
+            ", Print, exec, marea shot_region"
+            "SHIFT, Print, exec, marea shot_screen"
+            "CTRL, Print, exec, marea shot_window"
+            "SUPER SHIFT, C, exec, marea record_toggle"
 
             # Foco
             "$mainMod, left, movefocus, l"

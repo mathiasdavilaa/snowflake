@@ -4,12 +4,9 @@
   # Estrutura de Dados, Python em Algoritmos, este flake em Nix, scripts em
   # fish/bash) e pra quando entrar em Lua/Roblox.
   #
-  # Tudo — toolchain incluído — fica dentro deste módulo, em extraPackages:
-  # não polui o environment.systemPackages do host, só existe dentro do
-  # ambiente (FHS) em que o Zed roda. Se quiser usar clangd/pyright/etc solto
-  # no terminal também, isso é outra coisa (dá pra pedir depois).
-  flake.nixosModules.zed = { pkgs, username, ... }: {
-    home-manager.users.${username} = {
+  # A instalação é escolhida pelo host; os ajustes do usuário ficam aqui.
+  # A toolchain em extraPackages é disponibilizada ao Zed.
+  flake.homeModules.zed = { pkgs, ... }: {
       programs.zed-editor = {
         enable = true;
 
@@ -40,7 +37,7 @@
           stylua # formatter
 
           # ---- Nix (este próprio flake) ----
-          nil # LSP — o formatter já é o nixfmt-rfc-style de modules/formatter.nix
+          nil # LSP; o formatter do flake está em parts/systems.nix
           nixfmt-rfc-style
 
           # ---- Bash / scripts do fish ----
@@ -151,10 +148,10 @@
 
           indent_guides.enabled = false;
 
-          vim_mode = true;
+          vim_mode = false;
           multi_cursor_modifier = "cmd_or_ctrl";
-          cursor_shape = "block";
-          cursor_blink = false;
+          cursor_shape = "underline";
+          cursor_blink = true;
           selection_highlight = false;
           drag_and_drop_selection.enabled = false;
           seed_search_query_from_cursor = "never";
@@ -252,6 +249,5 @@
           };
         };
       };
-    };
   };
 }
