@@ -3,9 +3,9 @@
   imports = with self.nixosModules; [
     base
     hyprland
-    mango
-    plasma
-    pleamar
+    #mango
+    #plasma
+    #pleamar
     flatpak
     macro
     nh
@@ -15,13 +15,12 @@
 
   networking.hostName = "laptop";
 
-  programs.pleamar-wm.extraConfig."session.conf" = lib.mkAfter ''
-    monitor eDP-1 1920x1080 at 0,0 scale 1
-  '';
-  home-manager.users.${username} = {
-    imports = [ self.homeModules.zed ];
-    wayland.windowManager.mango.settings.monitorrule = [
-      "name:^eDP-1$,width:1920,height:1080,x:0,y:0,scale:1,rr:0"
-    ];
-  };
+  # Dados compartilhados; cada compositor gera suas próprias regras.
+  # transform: 0 = horizontal; 1 = vertical (90 graus).
+  _module.args.monitors = [
+    { name = "eDP-1"; width = 1920; height = 1200; refresh = 60; x = 0; y = 0; scale = 1; transform = 0; }
+    { name = "HDMI-A-1"; width = 1920; height = 1080; refresh = 60; x = 1920; y = 0; scale = 1; transform = 0; }
+  ];
+
+  home-manager.users.${username}.imports = [ self.homeModules.zed ];
 }

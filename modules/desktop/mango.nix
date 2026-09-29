@@ -1,7 +1,7 @@
 { self, inputs, ... }: {
   # Sessão Mango: compositor, Home Manager, DMS e atalhos da Marea.
   # As regras de monitor ficam em cada host.
-  flake.nixosModules.mango = { lib, pkgs, username, ... }: {
+  flake.nixosModules.mango = { lib, pkgs, username, monitors, ... }: {
     imports = [ inputs.mango.nixosModules.mango self.nixosModules.dms ];
     programs.mango.enable = true;
     environment.systemPackages = [ pkgs.yazi ];
@@ -13,6 +13,13 @@
         enable = true;
 
         settings = {
+          monitorrule = map (m:
+            "name:^${m.name}$,width:${toString m.width},height:${toString m.height},refresh:${toString m.refresh},x:${toString m.x},y:${toString m.y},scale:${toString m.scale},rr:${toString m.transform}"
+          ) monitors;
+          tagrule = lib.concatMap (m:
+            map (i: "id:${toString i},monitor_name:${m.name},layout_name:${if m.transform == 1 then "vertical_scroller" else "scroller"}") (lib.range 1 9)
+          ) monitors;
+
           # ---------------
           # ---- INPUT ----
           # ---------------

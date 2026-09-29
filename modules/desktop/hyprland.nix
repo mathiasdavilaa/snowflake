@@ -1,5 +1,5 @@
-{ inputs, ... }: {
-  flake.nixosModules.hyprland = { lib, pkgs, username, ... }:
+{ inputs, self, ... }: {
+  flake.nixosModules.hyprland = { lib, pkgs, username, monitors, ... }:
     let
       system = pkgs.stdenv.hostPlatform.system;
       hyprlandPackages = inputs.hyprland.packages.${system};
@@ -35,12 +35,12 @@
         settings = lib.mkForce {};
         extraConfig = lib.mkForce ''
           ----------------------------------------------------------------------
-          -- Monitores: mesma geometria do mangowm.nix
+          -- Monitores definidos pelo host
           ----------------------------------------------------------------------
           hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
-          hl.monitor({ output = "HDMI-A-1", mode = "1920x1080", position = "0x0", scale = 1, transform = 1 })
-          hl.monitor({ output = "DP-3", mode = "1920x1080@144", position = "1080x0", scale = 1, transform = 0 })
-          hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "0x0", scale = 1, transform = 0 })
+          ${lib.concatMapStringsSep "\n" (m: ''
+            hl.monitor({ output = ${builtins.toJSON m.name}, mode = "${toString m.width}x${toString m.height}@${toString m.refresh}", position = "${toString m.x}x${toString m.y}", scale = ${toString m.scale}, transform = ${toString m.transform} })
+          '') monitors}
 
           ----------------------------------------------------------------------
           -- Input, aparência do Mango/DMS e scrolling
@@ -77,7 +77,7 @@
               column_width = 0.5,
               fullscreen_on_one_column = true,
               follow_focus = true,
-              focus_fit_method = 1,
+              focus_fit_method = 1, -- Só ajusta a visão para mostrar a janela, sem centralizar.
               wrap_focus = false,
               wrap_swapcol = false,
               explicit_column_widths = "0.5,0.8,1.0",
@@ -87,8 +87,32 @@
           })
 
           -- O seletor acompanha o monitor, sem assumir IDs globais fixos.
-          hl.workspace_rule({ workspace = "m[HDMI-A-1]", layout_opts = { direction = "down" } })
-          hl.workspace_rule({ workspace = "m[DP-3]", layout_opts = { direction = "right" } })
+          -- Curvas e deslizamento inspirados no Mango, com tempos reduzidos.
+          -- O Hyprland mede a duração em décimos de segundo.
+          hl.curve("mango", { type = "bezier", points = { {0.46, 1}, {0.29, 1} } })
+          hl.curve("mangoClose", { type = "bezier", points = { {0.08, 0.92}, {0, 1} } })
+          hl.curve("mangoFade", { type = "bezier", points = { {0.5, 0.5}, {0.5, 0.5} } })
+          hl.animation({ leaf = "global", enabled = true, speed = 1.5, bezier = "mango" })
+          hl.animation({ leaf = "windows", enabled = true, speed = 1.5, bezier = "mango" })
+          hl.animation({ leaf = "windowsIn", enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
+          hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.5, bezier = "mangoClose", style = "slide" })
+          hl.animation({ leaf = "windowsMove", enabled = true, speed = 1.2, bezier = "mango" })
+          for _, leaf in ipairs({ "workspaces", "workspacesIn", "workspacesOut" }) do
+            hl.animation({ leaf = leaf, enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
+          end
+          hl.animation({ leaf = "layers", enabled = true, speed = 1.5, bezier = "mango" })
+          hl.animation({ leaf = "layersIn", enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
+          hl.animation({ leaf = "layersOut", enabled = true, speed = 1.5, bezier = "mangoClose", style = "slide" })
+          for _, leaf in ipairs({ "fade", "fadeIn", "fadeLayersIn", "border" }) do
+            hl.animation({ leaf = leaf, enabled = true, speed = 1, bezier = "mango" })
+          end
+          for _, leaf in ipairs({ "fadeOut", "fadeLayersOut" }) do
+            hl.animation({ leaf = leaf, enabled = true, speed = 1.5, bezier = "mangoFade" })
+          end
+
+          ${lib.concatMapStringsSep "\n" (m: ''
+            hl.workspace_rule({ workspace = ${builtins.toJSON "m[${m.name}]"}, layout_opts = { direction = "${if m.transform == 1 then "down" else "right"}" } })
+          '') monitors}
 
           ----------------------------------------------------------------------
           -- Workspaces independentes: 1–9 em cada monitor
@@ -97,7 +121,7 @@
           local smw = require("split-monitor-workspaces")
           smw.setup({
             workspace_count = 9,
-            monitor_priority = { "HDMI-A-1", "DP-3", "eDP-1" },
+            monitor_priority = { ${lib.concatMapStringsSep ", " (m: builtins.toJSON m.name) monitors} },
             keep_focused = true,
             enable_persistent_workspaces = true,
             restore_workspaces_on_monitor_reconnect = true,
@@ -157,16 +181,11 @@
           -- DMS: shell, launcher, bloqueio, captura, áudio e brilho
           ----------------------------------------------------------------------
           hl.on("hyprland.start", function() hl.exec_cmd(shell .. " run") end)
-          run("SUPER + D", shell .. " ipc call spotlight toggle")
-          run("SUPER + Escape", shell .. " ipc call powermenu toggle")
-          run("SUPER + F1", shell .. " ipc call keybinds toggle hyprland")
-          run("SUPER + ALT + L", shell .. " ipc call lock lock")
-          run("Print", shell .. " screenshot")
-          run("XF86AudioRaiseVolume", shell .. " ipc call audio increment 3", { repeating = true, locked = true })
-          run("XF86AudioLowerVolume", shell .. " ipc call audio decrement 3", { repeating = true, locked = true })
-          run("XF86AudioMute", shell .. " ipc call audio mute", { locked = true })
-          run("XF86MonBrightnessUp", shell .. " ipc call brightness increment 5", { repeating = true, locked = true })
-          run("XF86MonBrightnessDown", shell .. " ipc call brightness decrement 5", { repeating = true, locked = true })
+          ${ (self.lib.dmsBinds {
+            inherit lib;
+            session = "hyprland";
+            executable = lib.getExe dms;
+          }).hyprland }
 
           hl.window_rule({ name = "dms-floating", match = { class = "^com.danklinux.dms$" }, float = true })
           hl.window_rule({ name = "ignore-maximize", match = { class = ".*" }, suppress_event = "maximize" })

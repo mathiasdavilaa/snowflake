@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   # O módulo upstream instala a sessão; esta extensão local oferece extraConfig.
-  flake.nixosModules.pleamar = { config, lib, pkgs, ... }:
+  flake.nixosModules.pleamar = { config, lib, pkgs, monitors, ... }:
     let
       cfg = config.programs.pleamar-wm;
       wallpaper = pkgs.nixos-artwork.wallpapers.nineish.gnomeFilePath;
@@ -33,7 +33,10 @@
           withMarea = false;
           extraConfig = {
             "session.conf" = ''
-              # Monitores são acrescentados em hosts/<host>/default.nix.
+              ${lib.concatMapStringsSep "\n" (m:
+                "monitor ${m.name} ${toString m.width}x${toString m.height}@${toString m.refresh} at ${toString m.x},${toString m.y} scale ${toString m.scale}"
+                + lib.optionalString (m.transform != 0) " transform ${toString (m.transform * 90)}"
+              ) monitors}
               keyboard layout us,br options caps:escape repeat 30 delay 400
               pointer accel flat speed 0
             '';

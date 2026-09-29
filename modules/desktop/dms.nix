@@ -1,5 +1,34 @@
-{ inputs, ... }: {
-  flake.nixosModules.dms = { username, ... }: {
+{ inputs, self, ... }: {
+  # Fonte única das ações do DMS; cada compositor adapta apenas a sintaxe.
+  flake.lib.dmsBinds = { lib, session, executable ? "dms" }:
+    let
+      common = [
+        { mods = "SUPER"; key = "d"; command = "ipc call spotlight toggle"; }
+        { mods = "SUPER"; key = "Escape"; command = "ipc call powermenu toggle"; }
+        { mods = "SUPER"; key = "F1"; command = "ipc call keybinds toggle ${session}"; }
+        { key = "Print"; command = "screenshot"; }
+        { key = "XF86AudioRaiseVolume"; command = "ipc call audio increment 3"; repeating = true; locked = true; }
+        { key = "XF86AudioLowerVolume"; command = "ipc call audio decrement 3"; repeating = true; locked = true; }
+        { key = "XF86AudioMute"; command = "ipc call audio mute"; locked = true; }
+        { key = "XF86MonBrightnessUp"; command = "ipc call brightness increment 5"; repeating = true; locked = true; }
+        { key = "XF86MonBrightnessDown"; command = "ipc call brightness decrement 5"; repeating = true; locked = true; }
+      ];
+      binds = common ++ lib.optionals (session == "hyprland") [
+        { mods = "SUPER"; key = "Space"; command = "ipc call spotlight toggle"; }
+        { mods = "SUPER+ALT"; key = "L"; command = "ipc call lock lock"; }
+      ];
+      luaString = builtins.toJSON;
+    in {
+      mango = map (b: "${b.mods or "NONE"},${b.key},spawn_shell,${executable} ${b.command}") binds;
+      hyprland = lib.concatMapStringsSep "\n" (b:
+        let
+          keys = lib.optionalString (b ? mods) (lib.replaceStrings [ "+" ] [ " + " ] b.mods + " + ") + b.key;
+          flag = value: if value then "true" else "false";
+        in "hl.bind(${luaString keys}, hl.dsp.exec_cmd(${luaString "${executable} ${b.command}"}), { repeating = ${flag (b.repeating or false)}, locked = ${flag (b.locked or false)} })"
+      ) binds;
+    };
+
+  flake.nixosModules.dms = { lib, username, ... }: {
     imports = [ inputs.dms.nixosModules.default ];
 
     programs.dank-material-shell.enable = true;
@@ -16,17 +45,7 @@
         # senão o mango não expande os argumentos do IPC corretamente. Ficam
         # sempre ativos (sem o `lib.mkIf` do Hyprland acima) porque o DMS é a
         # shell da sessão no MangoWM.
-        #bind = [
-        #  "SUPER,d,spawn_shell,dms ipc call spotlight toggle"
-        #  "SUPER,Escape,spawn_shell,dms ipc call powermenu toggle"
-        #  "SUPER,F1,spawn_shell,dms ipc call keybinds toggle mangowm"
-        #  "NONE,Print,spawn_shell,dms screenshot"
-        #  "NONE,XF86AudioRaiseVolume,spawn_shell,dms ipc call audio increment 3"
-        #  "NONE,XF86AudioLowerVolume,spawn_shell,dms ipc call audio decrement 3"
-        #  "NONE,XF86AudioMute,spawn_shell,dms ipc call audio mute"
-        #  "NONE,XF86MonBrightnessUp,spawn_shell,dms ipc call brightness increment 5"
-        #  "NONE,XF86MonBrightnessDown,spawn_shell,dms ipc call brightness decrement 5"
-        #];
+        bind = (self.lib.dmsBinds { inherit lib; session = "mangowm"; }).mango;
 
         # dms/colors.conf original
         bordercolor = "0x948f99ff";

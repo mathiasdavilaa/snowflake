@@ -21,9 +21,9 @@
               set host (hostnamectl --static 2>/dev/null)
               switch $host
                 case tarnished desktop
-                  cd ~/snowflake && git add . && sudo nixos-rebuild switch --flake ~/snowflake#desktop
+                  sudo nixos-rebuild switch --flake ~/snowflake#desktop
                 case laptop
-                  cd ~/snowflake && git add . && sudo nixos-rebuild switch --flake ~/snowflake#laptop
+                  sudo nixos-rebuild switch --flake ~/snowflake#laptop
                 case '*'
                   echo "Perfil NixOS não reconhecido: $host"
                   return 1

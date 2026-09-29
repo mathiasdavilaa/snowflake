@@ -5,9 +5,9 @@
     graphics
     optimization
     hyprland
-    mango
-    plasma
-    pleamar
+    #mango
+    #plasma
+    #pleamar
     flatpak
     macro
     nh
@@ -18,22 +18,12 @@
 
   networking.hostName = "tarnished";
 
-  # Mesmo posicionamento físico do Mango, sem depender da config do Hyprland.
-  programs.pleamar-wm.extraConfig."session.conf" = lib.mkAfter ''
-    monitor HDMI-A-1 1920x1080 at 0,0 scale 1 transform 90
-    monitor DP-3 1920x1080 at 1080,0 scale 1
-  '';
-  home-manager.users.${username} = {
-    imports = [ self.homeModules.zed ];
+  # Dados compartilhados; cada compositor gera suas próprias regras.
+  # transform: 0 = horizontal; 1 = vertical (90 graus).
+  _module.args.monitors = [
+    { name = "HDMI-A-1"; width = 1920; height = 1080; refresh = 60; x = 0; y = 0; scale = 1; transform = 1; }
+    { name = "DP-3"; width = 1920; height = 1080; refresh = 144; x = 1080; y = 0; scale = 1; transform = 0; }
+  ];
 
-    # Regras específicas do monitor físico; o módulo Mango é compartilhável.
-    wayland.windowManager.mango.settings = {
-      monitorrule = [
-        "name:^HDMI-A-1$,width:1920,height:1080,x:0,y:0,scale:1,rr:1"
-        "name:^DP-3$,width:1920,height:1080,x:1080,y:0,scale:1,rr:0"
-      ];
-      tagrule = map (i: "id:${toString i},monitor_name:HDMI-A-1,layout_name:vertical_scroller") (lib.range 1 9)
-        ++ map (i: "id:${toString i},monitor_name:DP-3,layout_name:scroller") (lib.range 1 9);
-    };
-  };
+  home-manager.users.${username}.imports = [ self.homeModules.zed ];
 }

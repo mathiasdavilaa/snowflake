@@ -150,7 +150,7 @@
 
           vim_mode = false;
           multi_cursor_modifier = "cmd_or_ctrl";
-          cursor_shape = "line";
+          cursor_shape = "bar";
           cursor_blink = true;
           selection_highlight = false;
           drag_and_drop_selection.enabled = false;
