@@ -1,0 +1,28 @@
+{
+  "name": "EstudosRoblox",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "$ignoreUnknownInstances": true
+    },
+    "ServerScriptService": {
+      "Estudos": {
+        "$path": "src/server"
+      },
+      "$ignoreUnknownInstances": true
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Estudos": {
+          "$path": "src/client"
+        },
+        "$ignoreUnknownInstances": true
+      },
+      "$ignoreUnknownInstances": true
+    },
+    "$ignoreUnknownInstances": true
+  }
+}

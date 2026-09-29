@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
-# ============================================================
 # Macro de cliques para Hyprland + ydotool
 #
 # Adicione/remova posições no array POSITIONS abaixo.
 # As coordenadas são globais no layout do Hyprland.
-# ============================================================
 
 POSITIONS=(
     # "847 521"

@@ -1,11 +1,9 @@
 { ... }: {
   flake.nixosModules.plasma = { ... }: {
-    # KDE Plasma is kept as a fallback/recovery desktop.
-    # It does not replace Hyprland or Pleamar.
+    # Plasma oferece uma sessão alternativa aos compositores.
     services.desktopManager.plasma6.enable = true;
 
-    # SDDM provides the graphical session selector, allowing you to
-    # choose Plasma, Hyprland, or another installed Wayland session.
+    # SDDM permite escolher a sessão gráfica na tela de login.
     services.displayManager.sddm = {
       enable = true;
       wayland.enable = true;

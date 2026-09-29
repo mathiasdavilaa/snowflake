@@ -1,57 +1,99 @@
 { ... }: {
-  # Zed como IDE principal e única: editor + compiladores/interpretadores +
-  # LSPs + formatadores + debugger para o que você usa agora (C++ em
-  # Estrutura de Dados, Python em Algoritmos, este flake em Nix, scripts em
-  # fish/bash) e pra quando entrar em Lua/Roblox.
-  #
-  # A instalação é escolhida pelo host; os ajustes do usuário ficam aqui.
-  # A toolchain em extraPackages é disponibilizada ao Zed.
-  flake.homeModules.zed = { pkgs, ... }: {
+  flake.homeModules.zed = { pkgs, config, snowflakeProfile, ... }:
+    let
+      # Atualize se mover seu flake para outra pasta.
+      flakePath = "${config.home.homeDirectory}/snowflake";
+      flakeExpr = "(builtins.getFlake ${builtins.toJSON flakePath})";
+      cppStudy = pkgs.writeShellApplication {
+        name = "cpp-study";
+        runtimeInputs = [ pkgs.gcc pkgs.gdb pkgs.coreutils ];
+        text = ''
+          source_file="$1"
+          mode="$2"
+          case "$source_file" in
+            *.cpp|*.cc|*.cxx) ;;
+            *) echo "Abra e salve um arquivo C++ antes de executar esta tarefa." >&2; exit 1 ;;
+          esac
+          source_file="$(realpath -- "$source_file")"
+          output_dir="$(dirname -- "$source_file")/.zed-build"
+          mkdir -p -- "$output_dir"
+          output="$output_dir/$(basename -- "$source_file").out"
+          flags=(-std=c++20 -Wall -Wextra -Wpedantic -Wshadow -g -O0)
+          if [[ "$mode" == sanitize ]]; then
+            flags+=("-fsanitize=address,undefined" "-fno-omit-frame-pointer")
+          fi
+          g++ "''${flags[@]}" "$source_file" -o "$output"
+          case "$mode" in
+            run|sanitize) "$output" ;;
+            debug) gdb --quiet "$output" ;;
+          esac
+        '';
+      };
+    in {
+      programs.direnv = {
+        enable = true;
+        nix-direnv.enable = true;
+        enableFishIntegration = true;
+      };
       programs.zed-editor = {
         enable = true;
 
-        # $EDITOR/$VISUAL e app padrão pra abrir arquivos de texto no sistema.
+        # Define EDITOR e VISUAL para os programas que abrem um editor externo.
         defaultEditor = true;
 
-        # Populam "auto_install_extensions": baixam sozinhas no primeiro start.
-        # aura-theme = tema "Aura Dark"; charmed-icons = ícones "Warm Charmed
-        # Icons" — os dois vêm do visual abaixo.
+        # Extensões instaladas automaticamente ao abrir o Zed.
         extensions = [ "nix" "toml" "lua" "make" "aura-theme" "charmed-icons" ];
 
         extraPackages = with pkgs; [
-          # ---- C / C++ (Estrutura de Dados) ----
+          # C e C++: análise, compilação e depuração.
           clang-tools # clangd (LSP) + clang-format (formatter) + clang-tidy
           gcc
           cmake
           gnumake
           gdb
-          lldb # dá o lldb-dap, usado pelo debugger nativo do Zed
+          lldb # adaptador lldb-dap para depuração gráfica
+          ninja
 
-          # ---- Python (Algoritmos) ----
+          # Python: execução, análise de tipos e formatação.
           python3
           pyright # LSP
           ruff # lint + formatter (bem mais rápido que black)
 
-          # ---- Lua / Roblox ----
+          # Lua; o suporte a Luau/Roblox fica no módulo roblox.
           lua-language-server
           stylua # formatter
 
-          # ---- Nix (este próprio flake) ----
-          nil # LSP; o formatter do flake está em parts/systems.nix
+          # Nix: sugestões de pacotes/opções e formatação.
+          nixd # autocompletar pacotes e opções NixOS/Home Manager
           nixfmt-rfc-style
 
-          # ---- Bash / scripts do fish ----
+          # Bash: análise e formatação de scripts.
           bash-language-server
           shfmt
           shellcheck
 
-          # ---- Markdown / genérico ----
+          # Markdown e ferramentas usadas pelos servidores e terminal.
           marksman
+          nodejs
+          fish
+        ];
+
+        userTasks = map (task: {
+          inherit (task) label;
+          command = "${cppStudy}/bin/cpp-study \"$ZED_FILE\" ${task.mode}";
+          cwd = "$ZED_DIRNAME";
+          shell.program = "${pkgs.bash}/bin/bash";
+          save = "current";
+          reveal = "always";
+          allow_concurrent_runs = false;
+        }) [
+          { label = "C++: compilar e executar arquivo"; mode = "run"; }
+          { label = "C++: verificar memoria (sanitizers)"; mode = "sanitize"; }
+          { label = "C++: depurar arquivo com GDB"; mode = "debug"; }
         ];
 
         userSettings = {
-          # Quem atualiza o Zed é o Nix, não ele mesmo — senão ele tenta
-          # baixar um binário novo por cima do da store e quebra.
+          # O Zed é atualizado pelo rebuild do NixOS.
           auto_update = false;
 
           telemetry = {
@@ -61,13 +103,7 @@
 
           terminal.shell.program = "fish";
 
-          # ---------------------------------------------------------------
-          # Visual: baseado numa config de um youtuber (tema Aura Dark +
-          # ícones Warm Charmed Icons, bem clean/minimalista). Troquei duas
-          # coisas do original: as abas dos arquivos abertos (tab_bar) e o
-          # painel de arquivos (project_panel) continuam aparecendo, e
-          # adicionei o painel do git (git_panel) do lado direito.
-          # ---------------------------------------------------------------
+          # Tema, ícones e cores do editor.
           icon_theme = "Warm Charmed Icons";
           theme = "Aura Dark";
           theme_overrides = {
@@ -87,9 +123,7 @@
             };
           };
 
-          # Fonte "Dank Mono" é paga (não tá nos nixpkgs) — instale o
-          # arquivo da fonte à mão em ~/.local/share/fonts se já comprou;
-          # senão o Zed cai pra fonte padrão sozinho, sem erro.
+          # Dank Mono exige instalação manual em ~/.local/share/fonts.
           ui_font_family = "Dank Mono";
           ui_font_size = 20;
           buffer_font_family = "Dank Mono";
@@ -104,29 +138,25 @@
             show_user_menu = false;
           };
 
-          # Diferente do original: quero ver as abas dos arquivos abertos.
           tab_bar.show = true;
 
-          toolbar.quick_actions = false;
-          status_bar."experimental.show" = false;
+          toolbar.quick_actions = true;
+          status_bar."experimental.show" = true;
 
-          # Diferente do original: painel de arquivos na esquerda (não na
-          # direita) e já aberto ao iniciar.
+          # Explorador de arquivos à esquerda.
           project_panel = {
             dock = "left";
             default_width = 400;
             hide_root = true;
             auto_fold_dirs = false;
             starts_open = true;
-            git_status = false;
+            git_status = true;
             sticky_scroll = false;
             scrollbar.show = "never";
             indent_guides.show = "never";
           };
 
-          # Novo (não tava no original): painel do git na direita, também
-          # já aberto. Se o seu Zed ainda não tiver `starts_open` pra esse
-          # painel, é só abrir com o ícone de git na status bar / Cmd+Shift+G.
+          # Painel de alterações Git à direita.
           git_panel = {
             dock = "right";
             starts_open = true;
@@ -142,44 +172,52 @@
 
           gutter = {
             min_line_number_digits = 0;
-            folds = false;
-            runnables = false;
+            folds = true;
+            runnables = true;
           };
 
-          indent_guides.enabled = false;
+          indent_guides.enabled = true;
 
           vim_mode = false;
           multi_cursor_modifier = "cmd_or_ctrl";
-          cursor_shape = "bar";
+          cursor_shape = "underline";
           cursor_blink = true;
-          selection_highlight = false;
+          selection_highlight = true;
           drag_and_drop_selection.enabled = false;
           seed_search_query_from_cursor = "never";
           current_line_highlight = "none";
           show_whitespaces = "none";
           tab_size = 2;
-          auto_indent = false;
-          auto_indent_on_paste = false;
-          show_completions_on_input = false;
-          show_completion_documentation = false;
-          inline_code_actions = false;
+          auto_indent = "syntax_aware";
+          auto_indent_on_paste = true;
+          show_completions_on_input = true;
+          show_completion_documentation = true;
+          inline_code_actions = true;
           lsp_document_colors = "none";
-          hover_popover_enabled = false;
+          hover_popover_enabled = true;
 
-          # Format-on-save fica desligado (igual ao original) — os
-          # formatters por linguagem lá embaixo continuam definidos, dá pra
-          # rodar na mão (`editor: format document`) quando quiser.
           format_on_save = "off";
+          autosave = "off"; # Salva apenas quando solicitado.
+          auto_signature_help = true;
+          inlay_hints.enabled = true;
+          diagnostics.inline = {
+            enabled = true;
+            max_severity = "warning";
+          };
+          load_direnv = "direct";
+          dap.CodeLLDB = {
+            binary = "${pkgs.lldb}/bin/lldb-dap";
+            args = [ ];
+          };
 
-          autosave.after_delay.milliseconds = 1000;
           extend_comment_on_newline = false;
           horizontal_scroll_margin = 1;
           vertical_scroll_margin = 1;
           when_closing_with_no_tabs = "keep_window_open";
           close_on_file_delete = true;
           restore_on_file_reopen = false;
-          restore_on_startup = "empty_tab";
-          session.restore_unsaved_buffers = false;
+          restore_on_startup = "last_workspace";
+          session.restore_unsaved_buffers = true;
 
           git = {
             git_gutter = "hide";
@@ -191,58 +229,98 @@
             left_padding = 0.15;
           };
 
-          # Aponta os LSPs pro binário do Nix em vez do Zed tentar baixar o
-          # dele (o que costuma falhar no NixOS por causa do linking). Os
-          # nomes de chave abaixo são os que o Zed usa hoje para cada
-          # servidor — se algum não pegar, confira o nome exato em
-          # `zed: open log` e ajusta aqui.
+          # Caminhos absolutos evitam downloads de binários incompatíveis com NixOS.
           lsp = {
-            clangd.binary.path = "clangd";
+            clangd.binary = {
+              path = "${pkgs.clang-tools}/bin/clangd";
+              arguments = [
+                "--background-index"
+                "--clang-tidy"
+                "--completion-style=detailed"
+                "--query-driver=${pkgs.gcc}/bin/g++,${pkgs.gcc}/bin/gcc"
+              ];
+            };
+            # Também funciona em exercícios soltos, sem CMake/compile_commands.json.
+            clangd.initialization_options.fallbackFlags = [
+              "-Wall" "-Wextra" "-Wpedantic"
+              "-isystem" "${pkgs.gcc.cc}/include/c++/${pkgs.gcc.version}"
+              "-isystem" "${pkgs.gcc.cc}/include/c++/${pkgs.gcc.version}/${pkgs.stdenv.hostPlatform.config}"
+            ];
             pyright.binary = {
-              path = "pyright-langserver";
+              path = "${pkgs.pyright}/bin/pyright-langserver";
               arguments = [ "--stdio" ];
             };
-            nil.binary.path = "nil";
-            lua-language-server.binary.path = "lua-language-server";
+            ruff.binary = {
+              path = "${pkgs.ruff}/bin/ruff";
+              arguments = [ "server" ];
+            };
+            nixd = {
+              binary.path = "${pkgs.nixd}/bin/nixd";
+              settings = {
+                nixpkgs.expr = "import ${pkgs.path} { }";
+                options = {
+                  nixos.expr = "${flakeExpr}.nixosConfigurations.${snowflakeProfile}.options";
+                  home_manager.expr = "${flakeExpr}.nixosConfigurations.${snowflakeProfile}.options.home-manager.users.type.getSubOptions []";
+                };
+              };
+            };
+            lua-language-server.binary.path = "${pkgs.lua-language-server}/bin/lua-language-server";
             bash-language-server.binary = {
-              path = "bash-language-server";
+              path = "${pkgs.bash-language-server}/bin/bash-language-server";
               arguments = [ "start" ];
             };
           };
 
           languages = {
             "C" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
+              tab_size = 4;
               formatter.external = {
-                command = "clang-format";
+                command = "${pkgs.clang-tools}/bin/clang-format";
                 arguments = [ "--assume-filename={buffer_path}" ];
               };
             };
             "C++" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
+              tab_size = 4;
               formatter.external = {
-                command = "clang-format";
+                command = "${pkgs.clang-tools}/bin/clang-format";
                 arguments = [ "--assume-filename={buffer_path}" ];
               };
             };
             "Python" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
+              tab_size = 4;
+              language_servers = [ "pyright" "ruff" "!basedpyright" ];
               formatter.external = {
-                command = "ruff";
-                arguments = [ "format" "-" ];
+                command = "${pkgs.ruff}/bin/ruff";
+                arguments = [ "format" "--stdin-filename" "{buffer_path}" "-" ];
               };
             };
             "Lua" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
               formatter.external = {
-                command = "stylua";
+                command = "${pkgs.stylua}/bin/stylua";
                 arguments = [ "-" ];
               };
             };
             "Nix" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
+              language_servers = [ "nixd" "!nil" ];
               formatter.external = {
-                command = "nixfmt";
+                command = "${pkgs.nixfmt-rfc-style}/bin/nixfmt";
               };
             };
             "Shell Script" = {
+              auto_indent = "syntax_aware";
+              format_on_save = "off";
               formatter.external = {
-                command = "shfmt";
+                command = "${pkgs.shfmt}/bin/shfmt";
                 arguments = [ "-i" "2" ];
               };
             };

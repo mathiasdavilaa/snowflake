@@ -36,7 +36,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # ---- Pleamar: compositor + runtime das scenes + shell (Marea) ----
+    # Pleamar: compositor + runtime das scenes + shell (Marea)
     # Um único pleamar / marea para todo mundo (follows), evitando builds duplicados.
     pleamar = {
       url = "github:k4ditano/pleamar";

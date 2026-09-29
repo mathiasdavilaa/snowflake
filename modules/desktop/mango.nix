@@ -20,9 +20,7 @@
             map (i: "id:${toString i},monitor_name:${m.name},layout_name:${if m.transform == 1 then "vertical_scroller" else "scroller"}") (lib.range 1 9)
           ) monitors;
 
-          # ---------------
-          # ---- INPUT ----
-          # ---------------
+          # Teclado e mouse.
           mouse_accel_profile = 1;
           mouse_accel_speed = 0;
           xkb_rules_layout = "us,br";
@@ -38,9 +36,7 @@
             "XDG_SESSION_TYPE,wayland"
           ];
 
-          # ---------------------
-          # ---- KEYBINDINGS ----
-          # ---------------------
+          # Atalhos de teclado.
           bind =
             [
               "SUPER,w,spawn,ghostty"

@@ -1,0 +1,26 @@
+[
+  {
+    "label": "Roblox: iniciar Rojo",
+    "command": "rojo serve default.project.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all",
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Roblox: atualizar sourcemap",
+    "command": "rojo sourcemap default.project.json --watch --include-non-scripts --output sourcemap.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all",
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Roblox: gerar arquivo do Studio",
+    "command": "rojo build default.project.json --output EstudosRoblox.rbxlx",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "save": "all",
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

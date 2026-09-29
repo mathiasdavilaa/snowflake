@@ -98,3 +98,19 @@ Isso elimina a colisão de `xdg-desktop-portal-hyprland.service` na construção
 de user-units sem remover os provedores GTK/KDE/wlr/Pleamar.
 Para aplicar apenas esta correção, substitua `modules/desktop/pleamar.nix`
 pelo arquivo deste ZIP e execute seu `nrs`. Não é preciso atualizar inputs.
+
+
+## Zed para desenvolvimento
+
+Configuração de IDE atualizada em `modules/home/zed.nix`; veja [o guia](docs/zed.md)
+para aplicação, tarefas C++, depuração e novas linguagens. Projeto de exemplo em
+`examples/cpp-iniciante`. O módulo de sistema passa o perfil do host ao editor.
+
+
+## Complemento Roblox
+
+`modules/programs/roblox.nix` adiciona Vinegar, Rojo e Luau e pode ser desativado
+removendo `roblox` dos imports do host. Consulte [o guia](docs/roblox.md).
+O exemplo em `examples/roblox-iniciante` mantém as tarefas e APIs Roblox locais
+a esse projeto. Comentários históricos, decoração e código comentado sem uso
+foram removidos dos módulos; explicações de funcionamento foram preservadas.

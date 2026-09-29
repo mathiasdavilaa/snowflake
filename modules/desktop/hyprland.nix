@@ -30,21 +30,16 @@
         configType = "lua";
         systemd.enable = false; # A sessão atual do Hyprland gerencia seus targets.
 
-        # Toda a configuração do Hyprland é Lua neste módulo.
-        # Evita mesclar binds antigos em Hyprlang e duplicar SUPER+L.
+        # Usa apenas Lua e impede a mistura com configurações Hyprlang.
         settings = lib.mkForce {};
         extraConfig = lib.mkForce ''
-          ----------------------------------------------------------------------
           -- Monitores definidos pelo host
-          ----------------------------------------------------------------------
           hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
           ${lib.concatMapStringsSep "\n" (m: ''
             hl.monitor({ output = ${builtins.toJSON m.name}, mode = "${toString m.width}x${toString m.height}@${toString m.refresh}", position = "${toString m.x}x${toString m.y}", scale = ${toString m.scale}, transform = ${toString m.transform} })
           '') monitors}
 
-          ----------------------------------------------------------------------
           -- Input, aparência do Mango/DMS e scrolling
-          ----------------------------------------------------------------------
           hl.env("XCURSOR_SIZE", "24")
           hl.env("HYPRCURSOR_SIZE", "24")
           hl.config({
@@ -82,41 +77,49 @@
               wrap_swapcol = false,
               explicit_column_widths = "0.5,0.8,1.0",
             },
-            binds = { window_direction_monitor_fallback = false },
+            binds = {
+              window_direction_monitor_fallback = false,
+              -- Permite buscar outras janelas mesmo com a atual em fullscreen.
+              movefocus_cycles_fullscreen = true,
+            },
             misc = { disable_hyprland_logo = true, force_default_wallpaper = -1 },
           })
 
-          -- O seletor acompanha o monitor, sem assumir IDs globais fixos.
-          -- Curvas e deslizamento inspirados no Mango, com tempos reduzidos.
-          -- O Hyprland mede a duração em décimos de segundo.
+          -- Deslizamento e curvas da configuração de exemplo do MangoWM.
+          -- speed é duração em décimos de segundo: 4 = 400 ms; maior = mais lento.
           hl.curve("mango", { type = "bezier", points = { {0.46, 1}, {0.29, 1} } })
           hl.curve("mangoClose", { type = "bezier", points = { {0.08, 0.92}, {0, 1} } })
           hl.curve("mangoFade", { type = "bezier", points = { {0.5, 0.5}, {0.5, 0.5} } })
-          hl.animation({ leaf = "global", enabled = true, speed = 1.5, bezier = "mango" })
-          hl.animation({ leaf = "windows", enabled = true, speed = 1.5, bezier = "mango" })
-          hl.animation({ leaf = "windowsIn", enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
-          hl.animation({ leaf = "windowsOut", enabled = true, speed = 1.5, bezier = "mangoClose", style = "slide" })
-          hl.animation({ leaf = "windowsMove", enabled = true, speed = 1.2, bezier = "mango" })
+
+          -- Abertura: 400 ms; movimento: 500 ms; fechamento: 800 ms.
+          hl.animation({ leaf = "global", enabled = true, speed = 4, bezier = "mango" })
+          hl.animation({ leaf = "windows", enabled = true, speed = 4, bezier = "mango" })
+          hl.animation({ leaf = "windowsIn", enabled = true, speed = 4, bezier = "mango", style = "slide" })
+          hl.animation({ leaf = "windowsOut", enabled = true, speed = 8, bezier = "mangoClose", style = "slide" })
+          hl.animation({ leaf = "windowsMove", enabled = true, speed = 5, bezier = "mango" })
+
+          -- Troca horizontal de workspaces em 350 ms, como as tags do Mango.
           for _, leaf in ipairs({ "workspaces", "workspacesIn", "workspacesOut" }) do
-            hl.animation({ leaf = leaf, enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
+            hl.animation({ leaf = leaf, enabled = true, speed = 3.5, bezier = "mango", style = "slide" })
           end
-          hl.animation({ leaf = "layers", enabled = true, speed = 1.5, bezier = "mango" })
-          hl.animation({ leaf = "layersIn", enabled = true, speed = 1.5, bezier = "mango", style = "slide" })
-          hl.animation({ leaf = "layersOut", enabled = true, speed = 1.5, bezier = "mangoClose", style = "slide" })
-          for _, leaf in ipairs({ "fade", "fadeIn", "fadeLayersIn", "border" }) do
-            hl.animation({ leaf = leaf, enabled = true, speed = 1, bezier = "mango" })
+          hl.animation({ leaf = "layers", enabled = true, speed = 4, bezier = "mango" })
+          hl.animation({ leaf = "layersIn", enabled = true, speed = 4, bezier = "mango", style = "slide" })
+          hl.animation({ leaf = "layersOut", enabled = true, speed = 8, bezier = "mangoClose", style = "slide" })
+
+          -- O fade acompanha o deslizamento, sem sumir antes de a janela sair.
+          for _, leaf in ipairs({ "fade", "fadeIn", "fadeLayersIn" }) do
+            hl.animation({ leaf = leaf, enabled = true, speed = 4, bezier = "mango" })
           end
           for _, leaf in ipairs({ "fadeOut", "fadeLayersOut" }) do
-            hl.animation({ leaf = leaf, enabled = true, speed = 1.5, bezier = "mangoFade" })
+            hl.animation({ leaf = leaf, enabled = true, speed = 8, bezier = "mangoFade" })
           end
+          hl.animation({ leaf = "border", enabled = true, speed = 3.5, bezier = "mango" })
 
           ${lib.concatMapStringsSep "\n" (m: ''
             hl.workspace_rule({ workspace = ${builtins.toJSON "m[${m.name}]"}, layout_opts = { direction = "${if m.transform == 1 then "down" else "right"}" } })
           '') monitors}
 
-          ----------------------------------------------------------------------
           -- Workspaces independentes: 1–9 em cada monitor
-          ----------------------------------------------------------------------
           package.path = package.path .. ";${inputs.split-monitor-workspaces}/lua/?.lua"
           local smw = require("split-monitor-workspaces")
           smw.setup({
@@ -129,9 +132,7 @@
             enable_notifications = false,
           })
 
-          ----------------------------------------------------------------------
           -- Aplicativos e janelas: atalhos do Mango
-          ----------------------------------------------------------------------
           local terminal = "${lib.getExe pkgs.ghostty}"
           local shell = "${lib.getExe dms}"
           local function run(keys, command, flags)
@@ -139,17 +140,17 @@
           end
 
           run("SUPER + W", terminal)
-          run("SUPER + Return", terminal) -- Mantém também o Enter que você pediu.
+          run("SUPER + Return", terminal)
           run("SUPER + E", terminal .. " --title=Yazi -e ${lib.getExe pkgs.yazi}")
           hl.bind("SUPER + Q", hl.dsp.window.close())
           hl.bind("SUPER + ALT + F4", hl.dsp.exit())
           hl.bind("SUPER + V", hl.dsp.window.float({ action = "toggle" }))
 
-          -- Igual ao set_proportion do Mango: 100%, 50% e 80% da coluna.
+          -- Largura da janela: 100%, 50% ou 80% da coluna.
           hl.bind("SUPER + F", hl.dsp.layout("colresize 1.0"))
           hl.bind("SUPER + Prior", hl.dsp.layout("colresize 0.5"))
           hl.bind("SUPER + Next", hl.dsp.layout("colresize 0.8"))
-          hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", layout_aware = false }))
+          hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", layout_aware = true }))
           hl.bind("SUPER + equal", hl.dsp.window.resize({ x = 150, y = 0, relative = true }), { repeating = true })
           hl.bind("SUPER + minus", hl.dsp.window.resize({ x = -150, y = 0, relative = true }), { repeating = true })
 
@@ -177,15 +178,16 @@
           hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true })
           hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-          ----------------------------------------------------------------------
           -- DMS: shell, launcher, bloqueio, captura, áudio e brilho
-          ----------------------------------------------------------------------
           hl.on("hyprland.start", function() hl.exec_cmd(shell .. " run") end)
           ${ (self.lib.dmsBinds {
             inherit lib;
             session = "hyprland";
             executable = lib.getExe dms;
           }).hyprland }
+
+          -- Jogos identificados pela Steam abrem em tela cheia.
+          hl.window_rule({ name = "steam-games-fullscreen", match = { class = "^steam_app_[0-9]+$" }, fullscreen = true })
 
           hl.window_rule({ name = "dms-floating", match = { class = "^com.danklinux.dms$" }, float = true })
           hl.window_rule({ name = "ignore-maximize", match = { class = ".*" }, suppress_event = "maximize" })

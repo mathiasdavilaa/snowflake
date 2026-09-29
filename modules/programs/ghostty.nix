@@ -4,7 +4,7 @@
       programs.ghostty = {
         enable = true;
         settings = {
-          # Personalização será feita depois.
+          confirm-close-surface = false;
         };
       };
     };

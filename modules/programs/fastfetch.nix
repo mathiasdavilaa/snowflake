@@ -80,10 +80,6 @@
                 "type" = "swap";
                 "key" = "└ └󰓡";
               }
-              #{
-              #  "type" = "custom";
-              #  "format" = "└────────────────────────────────────────────────────┘";
-              #}
               "break"
               {
                 "type" = "custom";
@@ -122,10 +118,6 @@
                 "type" = "terminalfont";
                 "key" = "└ └";
               }
-              #{
-              #  "type" = "custom";
-              #  "format" = "└────────────────────────────────────────────────────┘";
-              #}
               "break"
               {
                 "type" = "custom";
@@ -145,10 +137,6 @@
                 "key" = "└  Generation";
                 "text" = "readlink /nix/var/nix/profiles/system | sed 's/.*system-//;s/-link//'";
               }
-              #{
-              #  "type" = "custom";
-              #  "format" = "└────────────────────────────────────────────────────┘";
-              #}
               "break"
             ];
         };
