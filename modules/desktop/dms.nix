@@ -16,17 +16,17 @@
         # senão o mango não expande os argumentos do IPC corretamente. Ficam
         # sempre ativos (sem o `lib.mkIf` do Hyprland acima) porque o DMS é a
         # shell da sessão no MangoWM.
-        bind = [
-          "SUPER,d,spawn_shell,dms ipc call spotlight toggle"
-          "SUPER,Escape,spawn_shell,dms ipc call powermenu toggle"
-          "SUPER,F1,spawn_shell,dms ipc call keybinds toggle mangowm"
-          "NONE,Print,spawn_shell,dms screenshot"
-          "NONE,XF86AudioRaiseVolume,spawn_shell,dms ipc call audio increment 3"
-          "NONE,XF86AudioLowerVolume,spawn_shell,dms ipc call audio decrement 3"
-          "NONE,XF86AudioMute,spawn_shell,dms ipc call audio mute"
-          "NONE,XF86MonBrightnessUp,spawn_shell,dms ipc call brightness increment 5"
-          "NONE,XF86MonBrightnessDown,spawn_shell,dms ipc call brightness decrement 5"
-        ];
+        #bind = [
+        #  "SUPER,d,spawn_shell,dms ipc call spotlight toggle"
+        #  "SUPER,Escape,spawn_shell,dms ipc call powermenu toggle"
+        #  "SUPER,F1,spawn_shell,dms ipc call keybinds toggle mangowm"
+        #  "NONE,Print,spawn_shell,dms screenshot"
+        #  "NONE,XF86AudioRaiseVolume,spawn_shell,dms ipc call audio increment 3"
+        #  "NONE,XF86AudioLowerVolume,spawn_shell,dms ipc call audio decrement 3"
+        #  "NONE,XF86AudioMute,spawn_shell,dms ipc call audio mute"
+        #  "NONE,XF86MonBrightnessUp,spawn_shell,dms ipc call brightness increment 5"
+        #  "NONE,XF86MonBrightnessDown,spawn_shell,dms ipc call brightness decrement 5"
+        #];
 
         # dms/colors.conf original
         bordercolor = "0x948f99ff";

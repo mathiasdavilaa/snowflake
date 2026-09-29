@@ -1,4 +1,4 @@
-{ self, username, ... }:
+{ self, username, lib, ... }:
 {
   imports = with self.nixosModules; [
     base
@@ -14,6 +14,10 @@
   ];
 
   networking.hostName = "laptop";
+
+  programs.pleamar-wm.extraConfig."session.conf" = lib.mkAfter ''
+    monitor eDP-1 1920x1080 at 0,0 scale 1
+  '';
   home-manager.users.${username} = {
     imports = [ self.homeModules.zed ];
     wayland.windowManager.mango.settings.monitorrule = [

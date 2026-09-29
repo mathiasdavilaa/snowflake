@@ -3,6 +3,7 @@
   imports = with self.nixosModules; [
     base
     graphics
+    optimization
     hyprland
     mango
     plasma
@@ -16,6 +17,12 @@
   ];
 
   networking.hostName = "tarnished";
+
+  # Mesmo posicionamento físico do Mango, sem depender da config do Hyprland.
+  programs.pleamar-wm.extraConfig."session.conf" = lib.mkAfter ''
+    monitor HDMI-A-1 1920x1080 at 0,0 scale 1 transform 90
+    monitor DP-3 1920x1080 at 1080,0 scale 1
+  '';
   home-manager.users.${username} = {
     imports = [ self.homeModules.zed ];
 

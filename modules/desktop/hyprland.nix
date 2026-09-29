@@ -1,228 +1,176 @@
-{ ... }: {
-  flake.nixosModules.hyprland = { lib, username, ... }: {
-    programs.hyprland = {
-      enable = true;
-      xwayland.enable = true;
-    };
-
-    home-manager.users.${username} = {
-      wayland.windowManager.hyprland = {
+{ inputs, ... }: {
+  flake.nixosModules.hyprland = { lib, pkgs, username, ... }:
+    let
+      system = pkgs.stdenv.hostPlatform.system;
+      hyprlandPackages = inputs.hyprland.packages.${system};
+      hyprland = hyprlandPackages.hyprland.overrideAttrs (old: {
+        cmakeFlags = builtins.filter
+          (flag: !(lib.hasPrefix "-DNO_UWSM" flag))
+          (old.cmakeFlags or []) ++ [ "-DNO_UWSM:BOOL=ON" ];
+        passthru = (old.passthru or {}) // { providedSessions = [ "hyprland" ]; };
+      });
+      dms = inputs.dms.packages.${system}.default;
+    in {
+      programs.hyprland = {
         enable = true;
+        package = hyprland;
+        portalPackage = hyprlandPackages.xdg-desktop-portal-hyprland;
+        withUWSM = false;
+        xwayland.enable = true;
+      };
 
-        # Hyprland/portal já vêm do módulo NixOS (programs.hyprland): o HM só gera a config.
+      # Executáveis usados pelos binds e pela shell do Hyprland.
+      environment.systemPackages = [ dms pkgs.ghostty pkgs.yazi ];
+      security.pam.services.dms = {};
+
+      home-manager.users.${username}.wayland.windowManager.hyprland = {
+        enable = true;
         package = null;
         portalPackage = null;
+        configType = "lua";
+        systemd.enable = false; # A sessão atual do Hyprland gerencia seus targets.
 
-        # Com home.stateVersion >= 26.05 o padrão passa a ser "lua"; este arquivo é hyprlang.
-        configType = "hyprlang";
+        # Toda a configuração do Hyprland é Lua neste módulo.
+        # Evita mesclar binds antigos em Hyprlang e duplicar SUPER+L.
+        settings = lib.mkForce {};
+        extraConfig = lib.mkForce ''
+          ----------------------------------------------------------------------
+          -- Monitores: mesma geometria do mangowm.nix
+          ----------------------------------------------------------------------
+          hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+          hl.monitor({ output = "HDMI-A-1", mode = "1920x1080", position = "0x0", scale = 1, transform = 1 })
+          hl.monitor({ output = "DP-3", mode = "1920x1080@144", position = "1080x0", scale = 1, transform = 0 })
+          hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "0x0", scale = 1, transform = 0 })
 
-        settings = {
-          # ------------------
-          # ---- MONITORS ----
-          # ------------------
-          monitor = [
-            ",preferred,auto,auto"
-          ];
+          ----------------------------------------------------------------------
+          -- Input, aparência do Mango/DMS e scrolling
+          ----------------------------------------------------------------------
+          hl.env("XCURSOR_SIZE", "24")
+          hl.env("HYPRCURSOR_SIZE", "24")
+          hl.config({
+            input = {
+              kb_layout = "us,br",
+              kb_options = "caps:escape",
+              repeat_rate = 30,
+              repeat_delay = 400,
+              follow_mouse = 0,
+              sensitivity = 0,
+              accel_profile = "flat",
+            },
+            general = {
+              layout = "scrolling",
+              gaps_in = 2, -- 2 de cada lado: vão interno de 4 px
+              gaps_out = 4,
+              border_size = 2,
+              col = {
+                active_border = "rgba(d0bcffff)",
+                inactive_border = "rgba(948f99ff)",
+              },
+            },
+            decoration = {
+              rounding = 12,
+              active_opacity = 1,
+              inactive_opacity = 1,
+            },
+            scrolling = {
+              direction = "right",
+              column_width = 0.5,
+              fullscreen_on_one_column = true,
+              follow_focus = true,
+              focus_fit_method = 1,
+              wrap_focus = false,
+              wrap_swapcol = false,
+              explicit_column_widths = "0.5,0.8,1.0",
+            },
+            binds = { window_direction_monitor_fallback = false },
+            misc = { disable_hyprland_logo = true, force_default_wallpaper = -1 },
+          })
 
-          # ---------------------
-          # ---- MY PROGRAMS ----
-          # ---------------------
-          "$terminal" = "kitty";
-          "$fileManager" = "dolphin";
-          "$menu" = "hyprlauncher";
-          "$mainMod" = "SUPER";
+          -- O seletor acompanha o monitor, sem assumir IDs globais fixos.
+          hl.workspace_rule({ workspace = "m[HDMI-A-1]", layout_opts = { direction = "down" } })
+          hl.workspace_rule({ workspace = "m[DP-3]", layout_opts = { direction = "right" } })
 
-          # -------------------------------
-          # ---- ENVIRONMENT VARIABLES ----
-          # -------------------------------
-          env = [
-            "XCURSOR_SIZE,24"
-            "HYPRCURSOR_SIZE,24"
-          ];
+          ----------------------------------------------------------------------
+          -- Workspaces independentes: 1–9 em cada monitor
+          ----------------------------------------------------------------------
+          package.path = package.path .. ";${inputs.split-monitor-workspaces}/lua/?.lua"
+          local smw = require("split-monitor-workspaces")
+          smw.setup({
+            workspace_count = 9,
+            monitor_priority = { "HDMI-A-1", "DP-3", "eDP-1" },
+            keep_focused = true,
+            enable_persistent_workspaces = true,
+            restore_workspaces_on_monitor_reconnect = true,
+            link_monitors = false,
+            enable_notifications = false,
+          })
 
-          # -----------------------
-          # ---- LOOK AND FEEL ----
-          # -----------------------
-          general = {
-            gaps_in = 5;
-            gaps_out = 20;
-            border_size = 2;
-            "col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
-            "col.inactive_border" = "rgba(595959aa)";
-            resize_on_border = false;
-            allow_tearing = false;
-            layout = "dwindle";
-          };
+          ----------------------------------------------------------------------
+          -- Aplicativos e janelas: atalhos do Mango
+          ----------------------------------------------------------------------
+          local terminal = "${lib.getExe pkgs.ghostty}"
+          local shell = "${lib.getExe dms}"
+          local function run(keys, command, flags)
+            hl.bind(keys, hl.dsp.exec_cmd(command), flags or {})
+          end
 
-          decoration = {
-            rounding = 10;
-            rounding_power = 2.0;
-            active_opacity = 1.0;
-            inactive_opacity = 1.0;
+          run("SUPER + W", terminal)
+          run("SUPER + Return", terminal) -- Mantém também o Enter que você pediu.
+          run("SUPER + E", terminal .. " --title=Yazi -e ${lib.getExe pkgs.yazi}")
+          hl.bind("SUPER + Q", hl.dsp.window.close())
+          hl.bind("SUPER + ALT + F4", hl.dsp.exit())
+          hl.bind("SUPER + V", hl.dsp.window.float({ action = "toggle" }))
 
-            shadow = {
-              enabled = true;
-              range = 4;
-              render_power = 3;
-              color = "0xee1a1a1a";
-            };
+          -- Igual ao set_proportion do Mango: 100%, 50% e 80% da coluna.
+          hl.bind("SUPER + F", hl.dsp.layout("colresize 1.0"))
+          hl.bind("SUPER + Prior", hl.dsp.layout("colresize 0.5"))
+          hl.bind("SUPER + Next", hl.dsp.layout("colresize 0.8"))
+          hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", layout_aware = false }))
+          hl.bind("SUPER + equal", hl.dsp.window.resize({ x = 150, y = 0, relative = true }), { repeating = true })
+          hl.bind("SUPER + minus", hl.dsp.window.resize({ x = -150, y = 0, relative = true }), { repeating = true })
 
-            blur = {
-              enabled = true;
-              size = 3;
-              passes = 1;
-              vibrancy = 0.1696;
-            };
-          };
+          -- HJKL e setas: foco; SHIFT: troca de posição, como exchange_client.
+          for _, item in ipairs({
+            { "H", "left" }, { "J", "down" }, { "K", "up" }, { "L", "right" },
+            { "Left", "left" }, { "Down", "down" }, { "Up", "up" }, { "Right", "right" },
+          }) do
+            hl.bind("SUPER + " .. item[1], hl.dsp.focus({ direction = item[2] }))
+            hl.bind("SUPER + SHIFT + " .. item[1], hl.dsp.window.swap({ direction = item[2] }))
+          end
 
-          animations = {
-            enabled = true;
+          -- Home: próximo monitor; SHIFT segue a janela; CTRL permanece aqui.
+          hl.bind("SUPER + Home", hl.dsp.focus({ monitor = "+1" }))
+          hl.bind("SUPER + SHIFT + Home", hl.dsp.window.move({ monitor = "+1", follow = true }))
+          hl.bind("SUPER + CTRL + Home", hl.dsp.window.move({ monitor = "+1", follow = false }))
 
-            bezier = [
-              "easeOutQuint, 0.23, 1, 0.32, 1"
-              "easeInOutCubic, 0.65, 0.05, 0.36, 1"
-              "linear, 0, 0, 1, 1"
-              "almostLinear, 0.5, 0.5, 0.75, 1"
-              "quick, 0.15, 0, 0.1, 1"
-            ];
+          for i = 1, 9 do
+            local n = tostring(i)
+            hl.bind("SUPER + " .. n, smw.workspace(n))
+            hl.bind("SUPER + SHIFT + " .. n, smw.move_to_workspace(n))
+            hl.bind("SUPER + CTRL + " .. n, smw.move_to_workspace_silent(n))
+          end
 
-            # Definição de springs como extra / parâmetros
-            animation = [
-              "global, 1, 10, default"
-              "border, 1, 5.39, easeOutQuint"
-              "windows, 1, 4.79, default"
-              "windowsIn, 1, 4.1, default, popin 87%"
-              "windowsOut, 1, 1.49, linear, popin 87%"
-              "fadeIn, 1, 1.73, almostLinear"
-              "fadeOut, 1, 1.46, almostLinear"
-              "fade, 1, 3.03, quick"
-              "layers, 1, 3.81, easeOutQuint"
-              "layersIn, 1, 4, easeOutQuint, fade"
-              "layersOut, 1, 1.5, linear, fade"
-              "fadeLayersIn, 1, 1.79, almostLinear"
-              "fadeLayersOut, 1, 1.39, almostLinear"
-              "workspaces, 1, 1.94, almostLinear, fade"
-              "workspacesIn, 1, 1.21, almostLinear, fade"
-              "workspacesOut, 1, 1.94, almostLinear, fade"
-              "zoomFactor, 1, 7, quick"
-            ];
-          };
+          hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true })
+          hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-          dwindle = {
-            preserve_split = true;
-          };
+          ----------------------------------------------------------------------
+          -- DMS: shell, launcher, bloqueio, captura, áudio e brilho
+          ----------------------------------------------------------------------
+          hl.on("hyprland.start", function() hl.exec_cmd(shell .. " run") end)
+          run("SUPER + D", shell .. " ipc call spotlight toggle")
+          run("SUPER + Escape", shell .. " ipc call powermenu toggle")
+          run("SUPER + F1", shell .. " ipc call keybinds toggle hyprland")
+          run("SUPER + ALT + L", shell .. " ipc call lock lock")
+          run("Print", shell .. " screenshot")
+          run("XF86AudioRaiseVolume", shell .. " ipc call audio increment 3", { repeating = true, locked = true })
+          run("XF86AudioLowerVolume", shell .. " ipc call audio decrement 3", { repeating = true, locked = true })
+          run("XF86AudioMute", shell .. " ipc call audio mute", { locked = true })
+          run("XF86MonBrightnessUp", shell .. " ipc call brightness increment 5", { repeating = true, locked = true })
+          run("XF86MonBrightnessDown", shell .. " ipc call brightness decrement 5", { repeating = true, locked = true })
 
-          master = {
-            new_status = "master";
-          };
-
-          scrolling = {
-            fullscreen_on_one_column = true;
-          };
-
-          misc = {
-            force_default_wallpaper = -1;
-            disable_hyprland_logo = false;
-          };
-
-          input = {
-            kb_layout = "us";
-            follow_mouse = 1;
-            sensitivity = 0;
-            touchpad = {
-              natural_scroll = false;
-            };
-          };
-
-          # Antigo `gestures:workspace_swipe` foi removido; agora é `gesture = dedos, direção, ação`.
-          gesture = [
-            "3, horizontal, workspace"
-          ];
-
-          device = [
-            {
-              name = "epic-mouse-v1";
-              sensitivity = -0.5;
-            }
-          ];
-
-          # ---------------------
-          # ---- KEYBINDINGS ----
-          # ---------------------
-          exec-once = [
-            "pleamar --autostart"
-          ];
-
-          bind = [
-            "$mainMod, Q, exec, $terminal"
-            "$mainMod, C, killactive,"
-            "$mainMod, M, exec, command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"
-            "$mainMod, E, exec, $fileManager"
-            "$mainMod, V, togglefloating,"
-            "$mainMod, R, exec, $menu"
-            "$mainMod, P, pseudo,"
-            "$mainMod, J, layoutmsg, togglesplit"
-            "$mainMod, F6, exec, ~/.local/bin/macro"
-            "SUPER, Space, exec, marea search"
-            "SUPER, L, exec, marea lock"
-            ", Print, exec, marea shot_region"
-            "SHIFT, Print, exec, marea shot_screen"
-            "CTRL, Print, exec, marea shot_window"
-            "SUPER SHIFT, C, exec, marea record_toggle"
-
-            # Foco
-            "$mainMod, left, movefocus, l"
-            "$mainMod, right, movefocus, r"
-            "$mainMod, up, movefocus, u"
-            "$mainMod, down, movefocus, d"
-
-            # Special workspace
-            "$mainMod, S, togglespecialworkspace, magic"
-            "$mainMod SHIFT, S, movetoworkspace, special:magic"
-
-            # Rato workspaces
-            "$mainMod, mouse_down, workspace, e+1"
-            "$mainMod, mouse_up, workspace, e-1"
-          ]
-          # Workspaces 1 a 9 (dispatchers nativos; `split-*` exigiam um plugin que não está instalado)
-          ++ (map (i: "$mainMod, ${toString i}, workspace, ${toString i}") (lib.range 1 9))
-          ++ (map (i: "$mainMod SHIFT, ${toString i}, movetoworkspace, ${toString i}") (lib.range 1 9));
-
-          binde = [
-            # Teclas multimédia com repetição
-            ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"
-            ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-            ", XF86MonBrightnessUp, exec, brightnessctl -e4 -n2 set 5%+"
-            ", XF86MonBrightnessDown, exec, brightnessctl -e4 -n2 set 5%-"
-          ];
-
-          bindl = [
-            # Teclas multimédia com ecrã bloqueado
-            ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-            ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
-            ", XF86AudioNext, exec, playerctl next"
-            ", XF86AudioPause, exec, playerctl play-pause"
-            ", XF86AudioPlay, exec, playerctl play-pause"
-            ", XF86AudioPrev, exec, playerctl previous"
-          ];
-
-          bindm = [
-            # Mouse drag/resize
-            "$mainMod, mouse:272, movewindow"
-            "$mainMod, mouse:273, resizewindow"
-          ];
-
-          # --------------------------------
-          # ---- WINDOWS AND WORKSPACES ----
-          # --------------------------------
-          # `windowrulev2` agora gera erro no Hyprland 0.56; sintaxe nova: `windowrule = match:<prop> <regex>, <efeito> <valor>`.
-          windowrule = [
-            "match:class .*, suppress_event maximize"
-            "match:class ^$, match:title ^$, match:xwayland 1, match:float 1, match:fullscreen 0, match:pin 0, no_focus on"
-            "match:class ^(hyprland-run)$, float on, move 20 monitor_h-120"
-          ];
-        };
+          hl.window_rule({ name = "dms-floating", match = { class = "^com.danklinux.dms$" }, float = true })
+          hl.window_rule({ name = "ignore-maximize", match = { class = ".*" }, suppress_event = "maximize" })
+        '';
       };
     };
-  };
 }
