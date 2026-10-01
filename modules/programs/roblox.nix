@@ -85,27 +85,6 @@
       '';
       # Rojo também fica disponível no terminal externo ao Zed.
       home.packages = [ pkgs.rojo ];
-      programs.zed-editor = {
-        extensions = [ "luau" ];
-        extraPackages = [ pkgs.luau-lsp pkgs.rojo ];
-        userSettings = {
-          lsp.luau-lsp.settings = {
-            # Este caminho mantém a preparação de APIs pela extensão Luau.
-            binary.path = "${pkgs.luau-lsp}/bin/luau-lsp";
-            # Ative Roblox e sourcemap apenas no .zed/settings.json do projeto.
-            roblox.enabled = false;
-            luau-lsp.sourcemap.enabled = false;
-          };
-          languages.Luau = {
-            language_servers = [ "luau-lsp" ];
-            tab_size = 4;
-            formatter.external = {
-              command = "${pkgs.stylua}/bin/stylua";
-              arguments = [ "--stdin-filepath" "{buffer_path}" "-" ];
-            };
-          };
-        };
-      };
     };
   };
 }

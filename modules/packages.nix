@@ -40,10 +40,10 @@
           # Desktop e laptop
           git
           neovim
+          zed-editor
           kitty
           brave-origin
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
-          hyprlauncher
           brightnessctl
           playerctl
         ])
@@ -56,6 +56,7 @@
             wev
             nautilus
             prismLauncher
+            spotify
           ]
         )
         ++ lib.optionals (profile == "laptop") (

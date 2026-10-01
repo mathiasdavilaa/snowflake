@@ -4,12 +4,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    hyprland.url = "github:hyprwm/Hyprland";
-    split-monitor-workspaces = {
-      url = "github:zjeffer/split-monitor-workspaces";
-      flake = false;
-    };
-
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:vic/import-tree";
 
@@ -26,34 +20,10 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    dms = {
-      url = "github:AvengeMedia/DankMaterialShell/stable";
+    # Última versão estável do iNiR; atualizações ficam fixadas no flake.lock.
+    inir = {
+      url = "github:snowarch/inir/main";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    mango = {
-      url = "github:mangowm/mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # Pleamar: compositor + runtime das scenes + shell (Marea)
-    # Um único pleamar / marea para todo mundo (follows), evitando builds duplicados.
-    pleamar = {
-      url = "github:k4ditano/pleamar";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    marea = {
-      url = "github:k4ditano/marea-plm";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.pleamar.follows = "pleamar";
-    };
-
-    pleamar-wm = {
-      url = "github:k4ditano/pleamar-wm";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.pleamar.follows = "pleamar";
-      inputs.marea.follows = "marea";
     };
   };
 

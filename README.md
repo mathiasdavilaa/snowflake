@@ -1,116 +1,129 @@
 # Snowflake
 
-O `flake.nix` declara inputs e importa `parts/` e `modules/` com import-tree.
-`parts/hosts.nix` cria os hosts; cada `hosts/<nome>/default.nix` escolhe os
-módulos. A configuração de cada ambiente gráfico acompanha seu módulo em
-`modules/desktop/`. O Zed é a exceção: o host escolhe sua instalação e importa
-`modules/home/zed.nix` para os ajustes do usuário.
+Flake NixOS com `flake-parts` e `import-tree`. `parts/hosts.nix` define
+`desktop` e `laptop`; os imports em `hosts/<perfil>/default.nix` escolhem os
+módulos de cada host.
 
-Adicione pacotes individuais em `modules/programs/packages.nix`. O arquivo tem
-três listas: compartilhados, só desktop e só laptop. Os hosts passam o nome do
-perfil automaticamente; para adicionar um pacote, basta incluí-lo na lista
-correspondente e rodar `nrs`.
+## Estrutura
 
-O módulo `pleamar` acrescenta `programs.pleamar-wm.extraConfig` localmente.
-Os campos `session.conf`, `keys.conf` e `autostart` são publicados em
-`/etc/pleamar/`, com `PLEAMAR_CONFIG=/etc/pleamar` na sessão. O módulo upstream
-do pleamar-wm não define essa opção. Essas configurações são declarativas;
-alterações diretas nos arquivos gerados não persistem.
+- `modules/packages.nix`: pacotes comuns e específicos de cada host. Zed é
+  instalado como `zed-editor` nos dois hosts, sem configuração do editor gerida
+  pelo Home Manager. Os dois módulos `zed.nix` foram removidos.
+- `modules/system/base.nix`: rede, áudio, fontes, usuário e tela de login SDDM.
+- `modules/system/graphics.nix` e `optimization.nix`: NVIDIA e jogos do desktop.
+- `modules/desktop/plasma.nix`: Plasma 6 nos dois hosts.
+- `modules/desktop/niri.nix`: Niri, monitores por host e atalhos.
+- `modules/desktop/inir.nix`: shell iNiR, iniciada somente com `niri.service`.
 
-## Conferência em uma instalação com Nix
+Hyprland, DMS, split-monitor-workspaces e hyprlauncher foram removidos, além de
+MangoWM, Pleamar e Marea. O pacote iNiR também omite sua dependência opcional do
+compositor Hyprland. Plasma 6 voltou nos dois hosts. MangoHud foi preservado:
+é a ferramenta de métricas dos jogos, não o compositor.
+
+## iNiR e Niri
+
+O input `github:snowarch/inir/main` acompanha o ramo estável. O lock deste pacote
+fixa iNiR 2.32.0, commit `c08bb928fe71c6a00bfede3e99ef26fb1825ebe2`.
+O suporte upstream ao NixOS é **experimental**. O instalador Arch não é usado.
+Niri vem do nixpkgs já fixado no flake. O xwayland-satellite foi atualizado
+isoladamente de 0.8.2 para 0.8.3: a versão 0.8.2 tem uma regressão de popups do
+Steam, corrigida no release de 24/09/2026. O overlay em `niri.nix` também aplica
+a versão corrigida ao runtime do iNiR e deixa de substituir o pacote quando
+nixpkgs fornecer 0.8.3 ou mais recente. O flake.lock permanece igual.
+Fonte: https://github.com/Supreeeme/xwayland-satellite/releases/tag/v0.8.3
+
+Após aplicar o rebuild, saia da sessão gráfica e entre novamente. Confira com
+`xwayland-satellite --version`. Não basta reiniciar somente o Steam.
+
+Na tela do SDDM, escolha **Niri** para iniciar Niri + iNiR ou **Plasma** para
+Plasma 6. Plasma é a sessão padrão. Se iniciar por TTY,
+use `niri-session`, pois a inicialização do iNiR depende da sessão systemd.
+
+Os monitores usam os dados existentes em cada host, incluindo rotação, posição,
+resolução e frequência. Não há variável DISPLAY fixada nem Satellite iniciado
+manualmente: Niri faz a integração automática.
+
+Atalhos principais do Niri:
+
+| Atalho | Ação |
+|---|---|
+| Super+W / Super+Enter | Ghostty |
+| Super+E | Yazi |
+| Super+D / Super+Space | Launcher iNiR |
+| Super+Q | Fechar janela |
+| Super+V | Alternar janela flutuante |
+| Super+F / Super+Shift+F | Maximizar coluna / fullscreen |
+| Super+PageUp / Super+PageDown | Largura de 50% / 80% |
+| Super+HJKL ou setas | Foco |
+| Super+Shift+HJKL ou setas | Mover janela/coluna |
+| Super+Ctrl+Left/Right | Foco no monitor à esquerda/direita |
+| Super+Ctrl+Shift+Left/Right | Mover janela para outro monitor |
+| Super+1–9 / Super+Shift+1–9 | Workspace / mover janela |
+| Super+Ctrl+1–9 | Mover janela sem seguir |
+| Super+I / Super+U | Workspace acima / abaixo |
+| Super+Shift+V | Clipboard iNiR |
+| Super+Comma | Configurações iNiR |
+| Super+Alt+L | Bloquear |
+| Super+Alt+F4 | Sair da sessão |
+| Super+F6 | Executar o macro existente |
+
+Niri usa workspaces dinâmicos: um número maior que a quantidade existente vai
+para o último workspace vazio. Não replica os nove workspaces persistentes por
+monitor de uma configuração estática. A configuração KDL é gerida neste flake; edite
+`modules/desktop/niri.nix`, não o link em `~/.config/niri/config.kdl`.
+
+O macro original foi preservado. Ele usa ydotool e seu array de posições está
+vazio nesta versão de origem. O auxiliar `mouse-position`, que dependia de `hyprctl`, foi removido.
+As coordenadas devem ser verificadas antes de usar um macro no Niri.
+
+## Aplicar
+
+Este ZIP é uma árvore completa substituta, não uma sobreposição: extrair por cima
+não apaga os módulos antigos. Guarde a árvore anterior e substitua os arquivos
+rastreados pelos deste pacote, preservando seu `.git`. Antes do rebuild, confira
+`git status` e registre os arquivos novos e as remoções pretendidas.
 
 ```sh
 nix flake check --no-build
 nix eval .#nixosConfigurations.desktop.config.system.build.toplevel.drvPath --raw
 nix eval .#nixosConfigurations.laptop.config.system.build.toplevel.drvPath --raw
+sudo nixos-rebuild switch --flake .#desktop
+# No laptop, use .#laptop.
 ```
 
-O laptop ainda contém UUIDs provisórios em
-`hosts/laptop/hardware-configuration.nix`. Substitua esse arquivo pelo hardware
-gerado no laptop antes de instalar. O desktop guarda seus próprios UUIDs e o
-SSD em `hosts/desktop/`; use um hardware-configuration da VM se for aplicar o
-flake na VM. `modules/system/graphics.nix` contém os ajustes NVIDIA do desktop físico;
-`modules/system/optimization.nix` habilita Steam, GameMode, MangoHud e TRIM.
-
-
-## Atualização: Pleamar e Hyprland
-
-Este pacote completo usa a versão reorganizada `snowflake-reestruturado.zip`
-como base, integra o patch de jogos anterior, o Hyprland no estilo Mango e
-as alterações do Pleamar desta conversa. Não inclui alterações feitas apenas
-no seu computador depois dos arquivos fornecidos.
-
-### Pleamar
-
-- Ghostty em Super+Return e Super+T; Yazi em Super+E.
-- Mouse com perfil flat e velocidade 0.
-- Teclados us,br, Caps como Escape, repetição 30/s e atraso 400 ms.
-- Monitores declarados em cada host: HDMI-A-1 vertical à esquerda e DP-3 à
-  direita no desktop; eDP-1 na origem no laptop.
-- Fullscreen em Super+Shift+F; Super+F fica livre.
-- H/K navegam para a janela anterior; J/L para a próxima.
-- Shift+H/J/K/L chama as mesmas ações das setas correspondentes do Pleamar.
-- Bloqueio em Super+Alt+L para liberar Super+L para navegação.
-- Workspaces 1–9 e atalhos de captura/Marea continuam nos defaults.
-
-A navegação é sequencial, não direcional como no Mango. As ações move_left e
-move_right da cena padrão podem trocar a janela de monitor. Não implementamos
-scrolling, floating individual ou envio entre monitores com/sem seguir como
-novas ações. O foco por passagem do mouse continua sendo o comportamento
-padrão da cena; alterá-lo exige uma etapa específica na cena `.plm`.
-
-### Aplicar no desktop
-
-Dentro da pasta `snowflake` extraída:
+Para atualizar apenas iNiR futuramente:
 
 ```sh
-nix flake lock
+nix flake update inir
 sudo nixos-rebuild switch --flake .#desktop
 ```
 
-Se copiar os arquivos para seu repositório Git existente, registre os arquivos
-novos antes do rebuild (`git add modules/system/optimization.nix`, por exemplo).
-O `flake.lock` original foi preservado. `nix flake lock` resolve os novos inputs
-Hyprland e split-monitor-workspaces; não fizemos essa resolução neste ambiente.
-Para atualizar posteriormente os dois juntos:
+Não use `inir update` nesta instalação Nix. Preferências da shell continuam
+nos arquivos graváveis de estado/configuração do iNiR. Para investigar falhas:
+`systemctl --user status inir` e `inir logs --full`.
+
+## Validação desta entrega
+
+- `nix flake check --no-build`: aprovado para x86_64-linux.
+- Avaliação completa de `system.build.toplevel.drvPath`: desktop e laptop aprovados.
+- `niri validate` com Niri 26.04: configuração dos dois hosts aprovada.
+- Inputs existentes preservados; somente iNiR adicionado e inputs removidos limpos.
+- Não foi executado um build completo dos sistemas nem uma sessão gráfica/jogos.
+
+O patch `snowflake-plasma-niri.patch` aplica esta mudança sobre o ZIP anterior
+`snowflake-niri-inir-satellite-fix.zip`, incluindo as remoções. Execute dentro
+do repositório:
 
 ```sh
-nix flake update hyprland split-monitor-workspaces
+git apply --check /caminho/snowflake-plasma-niri.patch
+git apply /caminho/snowflake-plasma-niri.patch
 ```
 
-Após o rebuild, saia e entre novamente na sessão Pleamar para reler os binds
-e aplicar as opções de dispositivos. No laptop, o alvo é `.#laptop`.
+### Verificação do Satellite 0.8.3
 
-### Verificação desta entrega
-
-Sintaxe de todos os arquivos Nix verificada com tree-sitter-nix; sintaxe da
-configuração Lua do Hyprland verificada com Lua 5.4. Caminhos locais de scripts
-e arquivos de hardware preservados. Não foram executados avaliação Nix,
-build do sistema nem testes gráficos; precisam ocorrer na máquina de destino.
-
-
-## Correção: portal duplicado
-
-O módulo Pleamar normaliza `xdg.portal.extraPortals`: se Hyprland está
-habilitado, todas as entradas de xdg-desktop-portal-hyprland usam
-`config.programs.hyprland.portalPackage`, com remoção das duplicatas.
-Isso elimina a colisão de `xdg-desktop-portal-hyprland.service` na construção
-de user-units sem remover os provedores GTK/KDE/wlr/Pleamar.
-Para aplicar apenas esta correção, substitua `modules/desktop/pleamar.nix`
-pelo arquivo deste ZIP e execute seu `nrs`. Não é preciso atualizar inputs.
-
-
-## Zed para desenvolvimento
-
-Configuração de IDE atualizada em `modules/home/zed.nix`; veja [o guia](docs/zed.md)
-para aplicação, tarefas C++, depuração e novas linguagens. Projeto de exemplo em
-`examples/cpp-iniciante`. O módulo de sistema passa o perfil do host ao editor.
-
-
-## Complemento Roblox
-
-`modules/programs/roblox.nix` adiciona Vinegar, Rojo e Luau e pode ser desativado
-removendo `roblox` dos imports do host. Consulte [o guia](docs/roblox.md).
-O exemplo em `examples/roblox-iniciante` mantém as tarefas e APIs Roblox locais
-a esse projeto. Comentários históricos, decoração e código comentado sem uso
-foram removidos dos módulos; explicações de funcionamento foram preservadas.
+`nix flake check --no-build` passou novamente para os dois hosts. O build
+isolado do Satellite foi tentado, mas parou na preparação das dependências
+Cargo: o ambiente de execução bloqueou o socket AF_UNIX do multiprocessing
+Python (PermissionError). O build completo e o comportamento gráfico não
+foram confirmados aqui. As hashes de fonte e Cargo vieram da receita upstream
+do nixpkgs para 0.8.3.

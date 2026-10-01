@@ -1,7 +1,5 @@
 {
   self,
-  username,
-  lib,
   ...
 }:
 {
@@ -9,14 +7,11 @@
     base
     graphics
     optimization
-    hyprland
-    #mango
-    #plasma
-    #pleamar
+    plasma
+    niri
     flatpak
     macro
     nh
-    zed
     roblox # Complemento opcional para Studio e Luau.
     ./hardware-configuration.nix
     ./ssd.nix
@@ -49,5 +44,4 @@
     }
   ];
 
-  home-manager.users.${username}.imports = [ self.homeModules.zed ];
 }

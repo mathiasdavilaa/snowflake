@@ -1,13 +1,40 @@
 { self, ... }:
 {
-  flake.nixosModules.base = { username, ... }: {
+  flake.nixosModules.base = { pkgs, username, ... }: {
     imports = with self.nixosModules; [
-      homeManager boot networking services hardware packages
+      homeManager boot packages
       fish ghostty git fastfetch
     ];
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
     nix.optimise.automatic = true;
+    networking.networkmanager.enable = true;
+
+    fonts.enableDefaultPackages = true;
+    fonts.packages = with pkgs; [
+      nerd-fonts.jetbrains-mono nerd-fonts.symbols-only
+      noto-fonts-cjk-sans noto-fonts-color-emoji font-awesome
+    ];
+
+    # Tela de login independente de qualquer ambiente desktop.
+    services.displayManager.sddm = {
+      enable = true;
+      wayland.enable = true;
+    };
+    services.displayManager.defaultSession = "plasma";
+
+    services.xserver.enable = true;
+    services.xserver.xkb.layout = "us";
+    services.printing.enable = true;
+    services.pulseaudio.enable = false;
+    security.rtkit.enable = true;
+    services.pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+    };
+
     time.timeZone = "America/Sao_Paulo";
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.extraLocaleSettings = builtins.listToAttrs (map
