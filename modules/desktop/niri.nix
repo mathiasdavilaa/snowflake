@@ -86,7 +86,6 @@
       }
 
       binds {
-        Super+W { spawn "ghostty"; }
         Super+Return { spawn "ghostty"; }
         Super+E { spawn "ghostty" "--title=Yazi" "-e" "yazi"; }
         Super+Q { close-window; }
