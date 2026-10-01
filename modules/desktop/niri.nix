@@ -8,24 +8,20 @@
     nixpkgs.overlays = [ (final: prev: {
       xwayland-satellite =
         if lib.versionOlder prev.xwayland-satellite.version "0.8.3" then
-          let
+          prev.xwayland-satellite.overrideAttrs (finalAttrs: old: {
+            version = "0.8.3";
             src = final.fetchFromGitHub {
               owner = "Supreeeme";
               repo = "xwayland-satellite";
               tag = "v0.8.3";
               hash = "sha256-eFEjCCniMCKeWU0PcZNv+tDYe08SLFPjRplyPY8OFt4=";
             };
-          in
-          prev.xwayland-satellite.overrideAttrs (old: {
-            version = "0.8.3";
-            inherit src;
-            # buildRustPackage lê cargoHash dos args originais, então
-            # overrideAttrs não o afeta: é preciso sobrescrever cargoDeps.
+            cargoHash = "sha256-gMGFvnbxM3hD5fmkSimaFd87GEf6BXFe/MGjoS6VNVU=";
+            # cargoHash sozinho não substitui o hash já capturado por cargoDeps.
+            # Refazer o vendor com a fonte e o hash da versão atualizada.
             cargoDeps = final.rustPlatform.fetchCargoVendor {
-              inherit (old) pname;
-              version = "0.8.3";
-              inherit src;
-              hash = "sha256-gMGFvnbxM3hD5fmkSimaFd87GEf6BXFe/MGjoS6VNVU=";
+              inherit (finalAttrs) pname version src;
+              hash = finalAttrs.cargoHash;
             };
           })
         else prev.xwayland-satellite;
@@ -85,7 +81,10 @@
         open-fullscreen true
       }
 
+      include "colors.kdl"
+
       binds {
+        Super+W { spawn "ghostty"; }
         Super+Return { spawn "ghostty"; }
         Super+E { spawn "ghostty" "--title=Yazi" "-e" "yazi"; }
         Super+Q { close-window; }

@@ -11,6 +11,7 @@
     niri
     flatpak
     macro
+    vm-curator
     nh
     roblox # Complemento opcional para Studio e Luau.
     ./hardware-configuration.nix
@@ -18,6 +19,22 @@
   ];
 
   networking.hostName = "tarnished";
+
+  boot.loader.limine = {
+    secureBoot = {
+      enable = true;
+      autoGenerateKeys = true;
+      # Cadastrar manualmente na UEFI após conferir o estado com sbctl.
+      autoEnrollKeys.enable = false;
+    };
+    # Usa a entrada UEFI existente e deixa o firmware iniciar o Windows.
+    # Não depende de um hash do bootmgfw.efi após atualizações do Windows.
+    extraEntries = ''
+      /Windows
+        protocol: efi_boot_entry
+        entry: Windows Boot Manager
+    '';
+  };
 
   # Dados compartilhados; cada compositor gera suas próprias regras.
   # transform: 0 = horizontal; 1 = vertical (90 graus).
@@ -30,7 +47,7 @@
       x = 0;
       y = 0;
       scale = 1;
-      transform = 1;
+      transform = 0;
     }
     {
       name = "DP-3";

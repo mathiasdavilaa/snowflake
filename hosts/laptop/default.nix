@@ -9,6 +9,7 @@
     niri
     flatpak
     macro
+    vm-curator
     nh
     roblox # Complemento opcional para Studio e Luau.
     ./hardware-configuration.nix

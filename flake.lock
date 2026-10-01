@@ -57,21 +57,42 @@
     "inir": {
       "inputs": {
         "nixpkgs": [
+          "inir-nixos",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1790803893,
-        "narHash": "sha256-SDhPNOhyGktgrcUd5L7ngHOztnI6HNPT+oBsOp/tLEQ=",
+        "lastModified": 1789849958,
+        "narHash": "sha256-Zu4FrR/vn+Pq81hLkR5n3XXt+ja7m0my6ml+4IJotn4=",
         "owner": "snowarch",
         "repo": "inir",
-        "rev": "c08bb928fe71c6a00bfede3e99ef26fb1825ebe2",
+        "rev": "9574fa424c0d1008e927454e933a7fbe292f9fb2",
         "type": "github"
       },
       "original": {
         "owner": "snowarch",
-        "ref": "main",
         "repo": "inir",
+        "type": "github"
+      }
+    },
+    "inir-nixos": {
+      "inputs": {
+        "inir": "inir",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790556554,
+        "narHash": "sha256-adVQgpLIgdwsUcAe+nrzy8eXr4umFlyY+Ku3UNx11g0=",
+        "owner": "LATAR-web",
+        "repo": "inir-nixos",
+        "rev": "86f29c5973f56d4ce4271c12c48d254912a1039e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "LATAR-web",
+        "repo": "inir-nixos",
         "type": "github"
       }
     },
@@ -127,7 +148,7 @@
         "flake-parts": "flake-parts",
         "home-manager": "home-manager",
         "import-tree": "import-tree",
-        "inir": "inir",
+        "inir-nixos": "inir-nixos",
         "nix-flatpak": "nix-flatpak",
         "nixpkgs": "nixpkgs",
         "zen-browser": "zen-browser"

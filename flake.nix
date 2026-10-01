@@ -20,9 +20,9 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    # Última versão estável do iNiR; atualizações ficam fixadas no flake.lock.
-    inir = {
-      url = "github:snowarch/inir/main";
+    # Integração comunitária, incluindo sua revisão compatível do iNiR.
+    inir-nixos = {
+      url = "github:LATAR-web/inir-nixos";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
