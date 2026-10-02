@@ -84,7 +84,6 @@
       include "colors.kdl"
 
       binds {
-        Super+W { spawn "ghostty"; }
         Super+Return { spawn "ghostty"; }
         Super+E { spawn "ghostty" "--title=Yazi" "-e" "yazi"; }
         Super+Q { close-window; }
@@ -126,7 +125,6 @@
 
         // Mantém os atalhos principais do Hyprland, com ações da shell iNiR.
         Super+D repeat=false { spawn "inir" "overview" "toggle"; }
-        Super+Space repeat=false { spawn "inir" "overview" "toggle"; }
         Super+Shift+V { spawn "inir" "clipboard" "toggle"; }
         Super+Comma { spawn "inir" "settings"; }
         Super+F1 { spawn "inir" "cheatsheet" "toggle"; }

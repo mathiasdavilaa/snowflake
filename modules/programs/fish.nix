@@ -26,7 +26,7 @@
                 case laptop
                   cd ~/snowflake && sudo nixos-rebuild switch --flake ~/snowflake#laptop
                 case '*'
-                  echo "Perfil NixOS não reconhecido: $host"
+                  echo "nixos profile not found: $host"
                   return 1
               end
             '';

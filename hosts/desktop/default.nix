@@ -54,7 +54,7 @@
       width = 1920;
       height = 1080;
       refresh = 144;
-      x = 1080;
+      x = 1920;
       y = 0;
       scale = 1;
       transform = 0;
