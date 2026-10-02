@@ -12,6 +12,6 @@ in
 {
   flake.nixosConfigurations = {
     desktop = mkHost "desktop" "mad";
-    laptop = mkHost "laptop" "mad";
+    laptop = mkHost "laptop" "mathias";
   };
 }

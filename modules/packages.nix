@@ -1,12 +1,5 @@
 { inputs, ... }:
-{
-  flake.nixosModules.packages =
-    {
-      pkgs,
-      lib,
-      profile,
-      ...
-    }:
+{ flake.nixosModules.packages = { pkgs, lib, profile, ... }:
     let
       # Aplica ao Prism e ao Minecraft a correção de OpenGL/Iris testada na NVIDIA.
       prismLauncher = pkgs.symlinkJoin {
@@ -33,10 +26,7 @@
         meta = pkgs.prismlauncher.meta;
       };
     in
-    {
-      nixpkgs.config.allowUnfree = true;
-      environment.systemPackages =
-        (with pkgs; [
+    { nixpkgs.config.allowUnfree = true; environment.systemPackages = (with pkgs; [
           # Desktop e laptop
           git
           neovim
@@ -47,9 +37,7 @@
           brightnessctl
           playerctl
         ])
-        ++ lib.optionals (profile == "desktop") (
-          with pkgs;
-          [
+        ++ lib.optionals (profile == "desktop") ( with pkgs; [
             # Só desktop
             discord
             zapzap
@@ -59,9 +47,7 @@
             spotify
           ]
         )
-        ++ lib.optionals (profile == "laptop") (
-          with pkgs;
-          [
+        ++ lib.optionals (profile == "laptop") ( with pkgs; [
             # Só laptop
           ]
         );
