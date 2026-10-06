@@ -48,7 +48,7 @@
           ]
         )
         ++ lib.optionals (profile == "laptop") ( with pkgs; [
-            # Só laptop
+            discord
           ]
         );
     };
