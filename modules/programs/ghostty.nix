@@ -6,6 +6,7 @@
         settings = {
           confirm-close-surface = false;
           theme = "dankcolors";
+          font-family = "GeistMono Nerd Font";
         };
       };
     };
