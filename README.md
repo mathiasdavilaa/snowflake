@@ -1,6 +1,6 @@
 # snowflake
 
-Minha configuração do NixOS para desktop e laptop. Uso Plasma e Niri com iNiR,
+Minha configuração do NixOS para desktop e laptop. Uso Plasma e Niri com Dank Material Shell,
 com SDDM na tela de login. O flake também cuida dos programas, do ambiente do
 usuário e das configurações de cada máquina.
 
@@ -284,3 +284,38 @@ colaboradores.
 
 O [Sober](https://sober.vinegarhq.org/) também é usado para jogar Roblox. O link
 leva à página oficial do projeto.
+
+
+## Shell do Niri
+
+O Niri importa `self.nixosModules.dms`, definido em `modules/desktop/dms.nix`.
+O DMS utiliza o módulo nativo `programs.dms-shell` do nixpkgs fixado no flake.
+Seu serviço inicia apenas com `niri.service`. As preferências da shell continuam
+editáveis pela interface do DMS; os atalhos e monitores ficam em `niri.nix`.
+O módulo do iNiR continua no repositório, desativado, para permitir voltar a ele.
+
+| Atalho | Ação |
+| --- | --- |
+| Super+D | Launcher do DMS |
+| Super+grave | Visão geral do Niri |
+| Super+Comma | Configurações do DMS |
+| Super+L | Bloquear a sessão |
+| Super+Shift+W | Seletor de wallpapers |
+| Super+Ctrl+V | Histórico da área de transferência |
+| Super+N | Notificações |
+| Super+Shift+Comma | Central de controles |
+| Super+Shift+Escape | Menu de energia |
+| Super+F1 | Atalhos do Niri |
+| Teclas de volume | Passos de 5%, com OSD |
+| Teclas de brilho | Passos de 10%, com OSD |
+
+Depois de copiar os arquivos atualizados para `~/snowflake`:
+
+```sh
+cd ~/snowflake
+git add modules/desktop/dms.nix modules/desktop/niri.nix README.md
+nrs
+```
+
+Encerre a sessão e entre novamente em Niri para completar a troca de shell.
+Não é necessário atualizar os inputs do flake para instalar o DMS.

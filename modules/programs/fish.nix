@@ -23,7 +23,7 @@
               switch $host
                 case tarnished desktop
                   cd ~/snowflake && sudo nixos-rebuild switch --flake ~/snowflake#desktop
-                case laptop
+                case laptop nixos
                   cd ~/snowflake && sudo nixos-rebuild switch --flake ~/snowflake#laptop
                 case '*'
                   echo "nixos profile not found: $host"

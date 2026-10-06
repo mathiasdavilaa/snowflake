@@ -13,6 +13,7 @@ in {
           (community + "/modules/patches/inir-icon-theme.patch")
           (community + "/modules/patches/inir-nixos-fixes.patch")
           ./patches/inir-launcher-env.patch
+          ./patches/inir-ipc-fast-path.patch
         ];
       });
       # O sincronizador da comunidade grava só um fragmento de cores, nunca

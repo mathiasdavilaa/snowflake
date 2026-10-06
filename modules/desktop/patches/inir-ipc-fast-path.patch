@@ -1,0 +1,18 @@
+--- a/scripts/inir
++++ b/scripts/inir
+@@ -3245,6 +3245,15 @@
+     fi
+ 
+     resolve_config_dir
++    # Hotkeys: a successful IPC already proves that the shell is running.
++    # Keep the original recovery path when the instance/target is unavailable.
++    case "$target" in
++        overview|wallpaperSelector|cheatsheet|brightness|osd)
++            if "$qs_bin" -p "$config_dir" ipc call "$target" "$@" 2>/dev/null; then
++                return 0
++            fi
++            ;;
++    esac
+     if ! ensure_running_instance_for_ipc "$config_dir" "${1:-}"; then
+         echo "Timed out waiting for iNiR to start" >&2
+         exit 1

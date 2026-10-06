@@ -30,12 +30,12 @@
           # Desktop e laptop
           git
           neovim
-          zed-editor
           kitty
           brave-origin
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
           brightnessctl
           playerctl
+          fetch
         ])
         ++ lib.optionals (profile == "desktop") ( with pkgs; [
             # Só desktop

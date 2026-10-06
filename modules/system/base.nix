@@ -3,7 +3,7 @@
   flake.nixosModules.base = { pkgs, username, ... }: {
     imports = with self.nixosModules; [
       homeManager boot packages
-      fish ghostty git fastfetch
+      fish ghostty git fastfetch zed
     ];
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
