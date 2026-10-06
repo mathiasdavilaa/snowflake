@@ -303,6 +303,8 @@ O módulo do iNiR continua no repositório, desativado, para permitir voltar a e
 | Super+Shift+W | Seletor de wallpapers |
 | Super+Ctrl+V | Histórico da área de transferência |
 | Super+N | Notificações |
+| Super+A | Overview do DMS (dashboard) |
+| Super+S | Menu de mídia do DMS |
 | Super+Shift+Comma | Central de controles |
 | Super+Shift+Escape | Menu de energia |
 | Super+F1 | Atalhos do Niri |

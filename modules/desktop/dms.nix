@@ -1,8 +1,9 @@
 { ... }: {
-  flake.nixosModules.dms = { lib, pkgs, username, ... }: {
-    # Módulo nativo do nixpkgs já fixado em flake.lock (DMS 1.6.2).
+  flake.nixosModules.dms = { inputs, lib, pkgs, username, ... }: {
+    # Módulo nativo com o pacote da branch stable oficial do DMS.
     programs.dms-shell = {
       enable = true;
+      package = inputs.dms.packages.${pkgs.stdenv.hostPlatform.system}.default;
       systemd = {
         enable = true;
         target = "niri.service";

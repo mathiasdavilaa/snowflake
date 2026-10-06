@@ -65,7 +65,7 @@
                 "key" = "│ ├󰋊";
                 "folders" = [
                   "/"
-                  "/mad"
+                  "/mnt/ssd"
                 ];
               }
               {

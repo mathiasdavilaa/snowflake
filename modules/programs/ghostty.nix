@@ -5,6 +5,7 @@
         enable = true;
         settings = {
           confirm-close-surface = false;
+          theme = "dankcolors";
         };
       };
     };

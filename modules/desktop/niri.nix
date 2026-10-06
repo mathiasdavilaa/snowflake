@@ -110,13 +110,15 @@
         Super+Comma { spawn "dms" "ipc" "call" "settings" "toggle"; }
         Super+F1 { show-hotkey-overlay; }
         Super+L repeat=false allow-when-locked=true { spawn "dms" "ipc" "call" "lock" "lock"; }
-        Super+Shift+W repeat=false { spawn "dms" "ipc" "call" "dash" "toggle" "wallpaper"; }
 
         Super+Shift+Slash { show-hotkey-overlay; }
         Super+Ctrl+V repeat=false { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
-        Super+N repeat=false { spawn "dms" "ipc" "call" "notifications" "toggle"; }
-        Super+Shift+Comma repeat=false { spawn "dms" "ipc" "call" "control-center" "toggle"; }
-        Super+Shift+Escape repeat=false { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
+        Super+Ctrl+W repeat=false { spawn "dms" "ipc" "call" "dash" "toggle" "wallpaper"; }
+        Super+Ctrl+N repeat=false { spawn "dms" "ipc" "call" "notifications" "toggle"; }
+        Super+Ctrl+A repeat=false { spawn "dms" "ipc" "call" "dash" "toggle" "overview"; }
+        Super+Ctrl+S repeat=false { spawn "dms" "ipc" "call" "dash" "toggle" "media"; }
+        Super+Ctrl+D repeat=false { spawn "dms" "ipc" "call" "control-center" "toggle"; }
+        Super+Ctrl+Escape repeat=false { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
         Super+D repeat=false { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
         XF86AudioRaiseVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
