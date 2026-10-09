@@ -10,7 +10,7 @@
         enable = true;
         defaultEditor = true;
 
-        # Configuração declarativa; integração de tema do iNiR ainda pendente.
+        # Configuração declarativa com as preferências pessoais do editor.
         mutableUserSettings = false;
 
         # ==========================================================

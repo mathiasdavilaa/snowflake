@@ -3,7 +3,7 @@
   flake.nixosModules.base = { pkgs, username, ... }: {
     imports = with self.nixosModules; [
       homeManager boot packages
-      fish ghostty git fastfetch zed
+      fish ghostty git zed flakeTools
     ];
 
     nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -25,7 +25,7 @@
       enable = true;
       wayland.enable = true;
     };
-    services.displayManager.defaultSession = "plasma";
+
 
     services.xserver.enable = true;
     services.xserver.xkb.layout = "us";

@@ -1,323 +1,194 @@
 # snowflake
 
-Minha configuração do NixOS para desktop e laptop. Uso Plasma e Niri com Dank Material Shell,
-com SDDM na tela de login. O flake também cuida dos programas, do ambiente do
-usuário e das configurações de cada máquina.
+Configuração declarativa do NixOS organizada em módulos. O flake reúne as
+dependências e as configurações de cada máquina, permitindo compartilhar uma
+base e manter os ajustes de cada host separados.
 
-O desktop tem os ajustes de NVIDIA e jogos. O laptop compartilha a base, mas
-mantém seu próprio hardware e seus monitores.
+## Baixar
 
-## Instalação
-
-As instruções abaixo partem de um NixOS já instalado. Para usar em outra máquina,
-ajuste o usuário, os discos e o hardware antes de aplicar a configuração.
-
-### 1. Clonar
-
-Com Git instalado:
+Com o NixOS instalado e o suporte a flakes habilitado:
 
 ```sh
+nix shell nixpkgs#git
 git clone https://github.com/mathiasdavilaa/snowflake.git ~/snowflake
 cd ~/snowflake
 ```
 
-Se precisar do Git, abra um shell temporário com `nix-shell -p git`.
+Se usar um fork, substitua a URL pela do seu repositório. Você também pode
+baixar o repositório como ZIP e extrair o conteúdo em `~/snowflake`.
 
-O caminho `~/snowflake` é usado pelos atalhos de rebuild e pelo `nh`. Se preferir
-outra pasta, ajuste `modules/programs/fish.nix` e `modules/programs/nh.nix`.
+## Adaptar à sua máquina
 
-### 2. Escolher o perfil e ajustar o usuário
+Antes de aplicar, confira o perfil que deseja usar e ajuste o nome do usuário,
+o hostname, o hardware, os discos e as configurações de boot. Use o
+`hardware-configuration.nix` da sua instalação como referência para o host.
 
-Os perfis disponíveis são `desktop` e `laptop`. Cada um tem seus imports em
-`hosts/<perfil>/default.nix`.
+Confira também os módulos importados por esse perfil: eles determinam quais
+serviços, programas e ambientes serão ativados.
 
-Em `parts/hosts.nix`, troque `mad` pelo usuário que vai usar o sistema. Usar o
-nome do seu usuário atual facilita manter a conta e a senha existentes. Confira
-também o hostname no arquivo do host; a função `nrs` identifica o perfil por ele.
+Mantenha `system.stateVersion` e `home.stateVersion` de acordo com sua
+instalação. Atualizar os pacotes não exige aumentar esses valores.
 
-### 3. Gerar a configuração de hardware
+## Aplicar
 
-Guarde sua configuração atual antes de começar. Gere o arquivo de hardware
-para a máquina onde o flake será aplicado:
+Para consultar os perfis disponíveis:
 
 ```sh
-# Desktop
-sudo nixos-generate-config --show-hardware-config > hosts/desktop/hardware-configuration.nix
+nix flake show
 ```
 
-No laptop, use `hosts/laptop/hardware-configuration.nix` como destino.
-
-Confira as montagens e os UUIDs gerados. O desktop também importa `ssd.nix`,
-que monta um disco extra em `/mnt/ssd`. Ajuste esse arquivo ou remova seu import
-se não usar esse disco.
-
-O módulo `graphics` configura a NVIDIA do desktop. Se sua GPU for diferente,
-adapte o módulo ou retire-o dos imports. Revise os dados de `monitors` no host
-para definir as saídas, resoluções, frequências e posições do Niri.
-
-O boot usa Limine com suporte a UEFI. Confira se essa configuração corresponde
-à instalação da sua máquina. Preserve os valores de `system.stateVersion` e
-`home.stateVersion` apropriados à sua instalação; eles não são números de
-versão para aumentar a cada atualização.
-
-### 4. Conferir e aplicar
-
-Arquivos novos precisam estar no Git para entrar no flake. Depois dos ajustes,
-confira `git status` e adicione os arquivos que você criou. Por exemplo:
+Aplique a configuração substituindo `PERFIL` pelo nome de uma entrada em
+`nixosConfigurations`:
 
 ```sh
-git add hosts/desktop/hardware-configuration.nix
-nix --extra-experimental-features 'nix-command flakes' flake check --no-build
-sudo nixos-rebuild switch --flake .#desktop --option experimental-features 'nix-command flakes'
+sudo nixos-rebuild switch --flake ~/snowflake#PERFIL
 ```
 
-Para o laptop, use `.#laptop`. O primeiro rebuild pode levar um tempo por causa
-dos downloads e das compilações. Se você criou um usuário novo, defina sua senha
-com `sudo passwd nome-do-usuario` antes de sair da sessão.
+Repita esse comando depois de editar a configuração. Alterações que dependem
+de uma nova sessão ou da inicialização do sistema exigem sair e entrar
+novamente ou reiniciar.
 
-### 5. Entrar na sessão
+Se estiver usando Git, adicione os arquivos novos com `git add` antes do
+rebuild para que sejam incluídos pelo Nix. Não é necessário fazer um commit
+para aplicar alterações locais.
 
-Depois do rebuild, execute como seu usuário:
+## Organização
 
-```sh
-systemd-tmpfiles --user --create
-```
+| Local | Função |
+| --- | --- |
+| `flake.nix` | Declara as dependências e os pontos de entrada da configuração. |
+| `flake.lock` | Registra as revisões das dependências. |
+| `parts/` | Organiza os perfis e a composição do flake. |
+| `hosts/` | Guarda o hardware e os ajustes específicos de cada máquina. |
+| `modules/` | Reúne configurações reutilizáveis do sistema e dos programas. |
 
-Isso cria os links de usuário usados pela integração do iNiR. Saia da sessão e
-entre novamente para carregar os grupos e o ambiente atualizados.
+Os hosts escolhem os módulos que utilizam pela lista `imports`. Para mudar
+um programa ou serviço, edite o módulo correspondente; para ativar ou remover
+um módulo de um perfil, ajuste seus imports.
 
-No SDDM, escolha Plasma ou Niri. Plasma é a sessão padrão. Para iniciar o Niri
-por uma TTY, use `niri-session`.
+As configurações compartilhadas ficam nos módulos. As diferenças entre
+máquinas ficam nos hosts. Depois de qualquer alteração, faça o rebuild do
+perfil desejado.
 
-## Windows e Secure Boot
+O sistema base e os programas pessoais não dependem de um ambiente gráfico.
+A escolha do ambiente acontece nos imports de `hosts/<perfil>/default.nix`:
 
-No desktop, o menu do Limine tem uma entrada `Windows` que usa a entrada UEFI
-`Windows Boot Manager` já existente. Ao selecioná-la, o computador reinicia
-para o firmware abrir o Windows diretamente. Se reinstalar o Windows, confira
-se essa entrada ainda aparece em `sudo efibootmgr -v`.
+| Módulo | Responsabilidade |
+| --- | --- |
+| `base` | Sistema, Home Manager, boot e programas compartilhados. |
+| `ryoky` | Integração completa do Ryoku e seus overrides pessoais. |
+| `niri` | Sessão Niri independente, com launcher e bloqueio próprios. |
+| `plasma` | Sessão KDE Plasma. |
+| `dms` | Shell opcional para a sessão Niri independente. |
 
-A assinatura do Limine está habilitada no desktop. O primeiro rebuild gera as
-chaves locais em `/var/lib/sbctl` quando elas ainda não existem e assina o
-bootloader. As chaves privadas ficam fora do repositório; não as coloque no Git.
-Isso prepara o boot, mas cadastrar as chaves na UEFI exige uma etapa manual em
-cada computador. O laptop mantém Secure Boot desabilitado no módulo até ser
-configurado separadamente.
+Escolha `ryoky`, `niri` ou `plasma` como base gráfica de cada host. Para usar
+Niri com DMS, escolha `niri` e acrescente `dms`. Os inputs de `flake.nix` apenas
+declaram dependências; um ambiente só é ativado quando seu módulo é importado.
+Hardware, jogos, editor, rede e demais programas seguem os mesmos módulos em
+qualquer escolha.
 
-Para concluir no desktop:
+## Ambiente e personalização
 
-1. Com Secure Boot ainda desabilitado na BIOS, aplique o flake com `nrs` e
-   confira `sudo sbctl status`.
-2. Se o Windows usa BitLocker ou criptografia do dispositivo, guarde a chave
-   de recuperação antes de alterar as chaves da UEFI.
-3. Entre na BIOS e coloque Secure Boot em **Setup Mode**, conforme as instruções
-   da placa-mãe. Volte ao NixOS com Secure Boot ainda desabilitado.
-4. Confira que `sudo sbctl status` informa Setup Mode e cadastre as chaves:
+### WM e interface
 
-   ```sh
-   sudo sbctl enroll-keys --microsoft --firmware-builtin
-   ```
+`modules/desktop/ryoky.nix` reúne toda a integração do Ryoku: módulo oficial,
+sessão principal, aplicativos opcionais, atualização pelo flake, preparação da
+base, overrides de Niri e Ghostty e ativação pelo Home Manager. Niri é o
+compositor principal; Hyprland também é disponibilizado pelo módulo oficial.
+O Hub cuida da aparência, das cores, das animações e dos ajustes do compositor.
 
-5. Rode `nrs` novamente e confira as assinaturas com `sudo sbctl verify`.
-   O verificador pode listar arquivos de outros bootloaders não assinados por
-   suas chaves; o Limine em uso precisa estar assinado. Não assine o bootloader
-   do Windows novamente: ele já tem assinatura Microsoft.
-6. Habilite Secure Boot na BIOS. Após iniciar o NixOS, confira com
-   `sudo sbctl status` e `sudo bootctl status`.
+Nesse ambiente, o materializador oficial gera os arquivos necessários depois
+de o Home Manager instalar os overrides. Na primeira ativação, as
+configurações anteriores ficam guardadas em
+`~/.local/state/snowflake/ryoku-base-v1/`; o arquivo `backup-path` indica a pasta.
+Os overrides declarados no módulo têm prioridade sobre ajustes equivalentes
+do Hub. As demais escolhas continuam sob controle da interface.
 
-Os rebuilds seguintes assinam o Limine e atualizam a configuração autenticada
-automaticamente. Edite as entradas pelo flake, sem alterar `limine.conf` à mão.
-As instruções oficiais estão na [wiki do NixOS](https://wiki.nixos.org/wiki/Limine).
+`modules/desktop/niri.nix` fornece uma sessão independente, com Fuzzel como
+launcher e Swaylock para bloqueio. Sua configuração é um único `config.kdl`,
+sem includes externos. Escolher esse módulo no host mantém Niri sem carregar
+o Ryoku. O módulo Plasma também pode ser escolhido como base gráfica.
 
-## Como o flake funciona
+### Binds
 
-`flake.nix` declara as dependências e carrega os arquivos de `parts/` e
-`modules/` com `flake-parts` e `import-tree`.
+Na sessão Ryoku, o Niri usa os atalhos fornecidos pelo próprio Ryoku e seus
+ajustes pelo Hub. O flake não adiciona substituições pessoais de binds nesse
+ambiente. Consulte os atalhos na interface do Ryoku.
 
-Os módulos são registrados em `self.nixosModules`. Cada host escolhe quais
-ativar pela sua lista de imports. Colocar um arquivo em `modules/` faz o flake
-carregá-lo, mas um módulo registrado só passa a configurar o sistema quando
-é importado pelo host ou por outro módulo.
+Na sessão Niri independente, os atalhos são definidos em
+`modules/desktop/niri.nix`. `Super` corresponde à tecla Windows.
 
-| Caminho | Função |
-|---|---|
-| `flake.nix` | Inputs e composição do flake |
-| `flake.lock` | Revisões fixadas das dependências |
-| `parts/hosts.nix` | Criação dos perfis e definição dos usuários |
-| `parts/systems.nix` | Sistemas usados pelos outputs auxiliares e formatador |
-| `hosts/` | Hardware, discos, hostname, monitores e imports de cada máquina |
-| `modules/packages.nix` | Pacotes comuns e exclusivos de cada perfil |
-| `modules/system/` | Base do sistema, boot, Home Manager, GPU e jogos |
-| `modules/desktop/` | Plasma, Niri, iNiR e scripts da sessão |
-| `modules/programs/` | Configuração de programas e ferramentas |
+### Teclado, mouse e touchpad
 
-O módulo `base` reúne rede, áudio, fontes, usuário, SDDM e os programas básicos.
-O Home Manager está integrado ao NixOS: configurações do usuário são aplicadas
-no mesmo rebuild, sem precisar rodar `home-manager switch` separadamente.
+O teclado usa os layouts `us,br`, e `Caps Lock` funciona como `Escape`. A
+repetição começa após 400 ms, a 30 repetições por segundo. O mouse usa um perfil
+de aceleração plano. No touchpad, toque para clicar e rolagem natural ficam
+habilitados; durante a digitação, o touchpad é desativado.
 
-Para desativar um módulo em uma máquina, retire-o dos imports desse host.
-Confira as dependências: por exemplo, `niri` importa `inir`, e `base` importa
-`packages` e `homeManager`.
+Essas opções ficam no bloco `input` do módulo do ambiente escolhido:
+`ryoky.nix` ou `niri.nix`.
 
-## Pacotes
+### Terminal e arquivos
 
-Em `modules/packages.nix`, a primeira lista vale para os dois hosts. As listas
-condicionadas pelo `profile` ficam só no desktop ou só no laptop. Programas que
-precisam de serviços ou configurações próprias têm módulos separados.
+Ghostty e Fish têm configurações independentes em `modules/programs/`.
+O módulo Fish também disponibiliza Fastfetch quando sua configuração é usada.
 
-Uso o Zed como editor principal.
+Ao escolher Ryoku, `ryoky.nix` deixa o materializador cuidar dos arquivos
+principais de Fish, Ghostty e Fastfetch. A configuração do Ghostty segue a
+paleta do ambiente, com escolhas pessoais em `ghostty/user.conf`. Esses ajustes
+específicos ficam no próprio `ryoky.nix`; os módulos genéricos continuam
+utilizáveis com outros ambientes.
 
-## Niri e iNiR
+`nrs` aplica o perfil da máquina; `nru` atualiza as dependências em
+`~/snowflake`, e `nru ryoku` atualiza apenas esse input. São comandos disponíveis
+em qualquer shell, definidos em `modules/programs/flake-tools.nix`.
 
-A configuração do Niri fica em `modules/desktop/niri.nix`. Os monitores são
-lidos dos dados definidos no host; os atalhos e o layout ficam no módulo.
+### Editor
 
-O iNiR usa a integração comunitária do
-[LATAR-web/inir-nixos](https://github.com/LATAR-web/inir-nixos). O flake importa
-os módulos e patches necessários, mantendo SDDM e a configuração local do Niri.
-A shell e o sincronizador de cores acompanham a sessão Niri.
+O Zed mantém sua configuração própria em `modules/programs/zed.nix`: tema One
+Dark, ícones Material, fonte GeistMono Nerd Font e indentação padrão de dois
+espaços. A formatação automática fica desabilitada, e a manual permanece
+disponível. O terminal integrado usa Fish e abre no diretório do projeto.
 
-Um patch local no launcher evita que a ausência de variáveis opcionais no
-config do Niri interrompa a inicialização da shell.
+### Monitores, hardware e jogos
 
-O arquivo principal do Niri é gerenciado pelo Home Manager. Para alterar seus
-atalhos ou monitores, edite o flake. As cores geradas pelo iNiR ficam em um
-fragmento separado, `~/.config/niri/colors.kdl`.
+Os hosts definem resolução, frequência, escala, posição e orientação dos
+monitores. Com Ryoku, essas escolhas geram `niri/monitors_user.kdl`, que tem
+prioridade sobre o layout automático. Na sessão Niri independente, elas entram
+no próprio `config.kdl`. Para deixar um monitor sob controle do Ryoku, retire
+sua entrada da lista do host. O Plasma usa suas próprias configurações de tela.
 
-Se uma instalação manual antiga estiver em `~/.config/quickshell/inir`, renomeie
-o diretório como backup antes de criar os links de usuário. Não é necessário
-executar o instalador do projeto comunitário.
+O desktop usa os módulos de GPU e jogos. Steam, GameMode e MangoHud ficam em
+`modules/system/optimization.nix`; a GPU é configurada em
+`modules/system/graphics.nix`. O bootloader é o Limine, configurado em
+`modules/system/boot.nix` e complementado pelos ajustes de cada host.
 
-Alguns atalhos do Niri:
+## Atualizar
 
-| Atalho | Ação |
-|---|---|
-| Super+Enter ou Super+W | Terminal |
-| Super+E | Yazi |
-| Super+D ou Super+Space | Launcher |
-| Super+Q | Fechar janela |
-| Super+V | Alternar janela flutuante |
-| Super+Shift+F | Tela cheia |
-| Super+H/J/K/L ou setas | Mudar o foco |
-| Super+1–9 | Mudar de workspace |
-| Super+Shift+1–9 | Mover janela para um workspace |
-| Super+Comma | Configurações do iNiR |
-| Super+Alt+L | Bloquear a sessão |
-
-## Uso diário
-
-No Fish, `nrs` aplica a configuração do host atual e `nru` atualiza os inputs.
-A atualização das dependências só entra no sistema depois de um rebuild.
-
-Também dá para usar os comandos diretamente, dentro do repositório:
+Para buscar as versões mais recentes das dependências e aplicá-las:
 
 ```sh
-nix fmt
-nix flake check --no-build
+cd ~/snowflake
 nix flake update
-sudo nixos-rebuild switch --flake .#desktop
+sudo nixos-rebuild switch --flake .#PERFIL
 ```
 
-Para atualizar somente a integração comunitária do iNiR:
+Para atualizar apenas uma dependência, substitua `INPUT` pelo nome declarado
+em `flake.nix`:
 
 ```sh
-nix flake update inir-nixos
+nix flake update INPUT
 ```
 
-O iNiR é atualizado pelo flake. Use esse caminho em vez de `inir update`.
-Mantenha o `flake.lock` no Git para registrar quais dependências estão em uso.
+A atualização modifica `flake.lock`; o rebuild aplica a configuração com as
+novas revisões.
 
-O `nh` está disponível para rebuilds, e sua limpeza automática remove gerações
-antigas periodicamente. Para voltar à geração anterior:
+## Voltar à geração anterior
 
 ```sh
 sudo nixos-rebuild switch --rollback
 ```
 
-Se a sessão não abrir, também é possível selecionar uma geração anterior no
-menu do Limine durante o boot.
-
-Para investigar problemas na shell:
-
-```sh
-systemctl --user status inir
-journalctl --user -u inir -b
-inir logs --full
-```
-
-## Créditos
-
-Este flake reúne meu jeito de configurar o sistema, mas depende do trabalho de
-muita gente. Os projetos abaixo fornecem a base, os módulos e as ferramentas
-usadas aqui. Os créditos de cada projeto pertencem aos seus autores e
-colaboradores.
-
-| Projeto | Uso neste flake |
-|---|---|
-| [Nix](https://github.com/NixOS/nix) | Gerenciador de pacotes e flakes |
-| [NixOS / nixpkgs](https://github.com/NixOS/nixpkgs) | Sistema, pacotes e módulos do NixOS |
-| [Home Manager](https://github.com/nix-community/home-manager) | Configurações do usuário |
-| [flake-parts](https://github.com/hercules-ci/flake-parts) | Organização dos outputs do flake |
-| [import-tree](https://github.com/vic/import-tree) | Carregamento dos arquivos de módulos |
-| [nixpkgs.lib](https://github.com/nix-community/nixpkgs.lib) | Biblioteca usada pelo flake-parts |
-| [nix-flatpak](https://github.com/gmodena/nix-flatpak) | Configuração declarativa dos aplicativos Flatpak |
-| [zen-browser-flake](https://github.com/0xc000022070/zen-browser-flake) | Integração do Zen Browser com Nix |
-| [Niri](https://github.com/niri-wm/niri) | Compositor Wayland |
-| [iNiR](https://github.com/snowarch/inir) | Shell usada na sessão Niri |
-| [inir-nixos](https://github.com/LATAR-web/inir-nixos) | Integração comunitária do iNiR com NixOS, módulos e patches |
-| [Quickshell](https://github.com/quickshell-mirror/quickshell) | Base da interface do iNiR |
-| [xwayland-satellite](https://github.com/Supreeeme/xwayland-satellite) | Aplicativos X11 na sessão Niri |
-| [KDE Plasma](https://invent.kde.org/plasma) | Ambiente desktop |
-| [SDDM](https://github.com/sddm/sddm) | Tela de login |
-| [Limine](https://github.com/limine-bootloader/limine) | Bootloader |
-| [sbctl](https://github.com/Foxboron/sbctl) | Chaves e assinatura para Secure Boot |
-| [efibootmgr](https://github.com/rhboot/efibootmgr) | Consulta das entradas de boot UEFI |
-| [nh](https://github.com/nix-community/nh) | Rebuilds e limpeza de gerações |
-| [Zed](https://github.com/zed-industries/zed) | Editor principal |
-| [VM Curator](https://github.com/mroboff/vm-curator) | Gerenciamento de máquinas virtuais |
-| [QEMU](https://gitlab.com/qemu-project/qemu) | Execução das máquinas virtuais |
-| [ydotool](https://github.com/ReimuNotMoe/ydotool) | Automação de teclado e mouse para o macro |
-| [GameMode](https://github.com/FeralInteractive/gamemode) | Ajustes durante a execução de jogos |
-| [MangoHud](https://github.com/flightlessmango/MangoHud) | Monitoramento de desempenho |
-| [Prism Launcher](https://github.com/PrismLauncher/PrismLauncher) | Launcher do Minecraft |
-| [Vinegar](https://github.com/vinegarhq/vinegar) | Roblox Studio no Linux |
-| [Rojo](https://github.com/rojo-rbx/rojo) | Ferramenta para projetos do Roblox |
-
-O [Sober](https://sober.vinegarhq.org/) também é usado para jogar Roblox. O link
-leva à página oficial do projeto.
-
-
-## Shell do Niri
-
-O Niri importa `self.nixosModules.dms`, definido em `modules/desktop/dms.nix`.
-O DMS utiliza o módulo nativo `programs.dms-shell` do nixpkgs fixado no flake.
-Seu serviço inicia apenas com `niri.service`. As preferências da shell continuam
-editáveis pela interface do DMS; os atalhos e monitores ficam em `niri.nix`.
-O módulo do iNiR continua no repositório, desativado, para permitir voltar a ele.
-
-| Atalho | Ação |
-| --- | --- |
-| Super+D | Launcher do DMS |
-| Super+grave | Visão geral do Niri |
-| Super+Comma | Configurações do DMS |
-| Super+L | Bloquear a sessão |
-| Super+Shift+W | Seletor de wallpapers |
-| Super+Ctrl+V | Histórico da área de transferência |
-| Super+N | Notificações |
-| Super+A | Overview do DMS (dashboard) |
-| Super+S | Menu de mídia do DMS |
-| Super+Shift+Comma | Central de controles |
-| Super+Shift+Escape | Menu de energia |
-| Super+F1 | Atalhos do Niri |
-| Teclas de volume | Passos de 5%, com OSD |
-| Teclas de brilho | Passos de 10%, com OSD |
-
-Depois de copiar os arquivos atualizados para `~/snowflake`:
-
-```sh
-cd ~/snowflake
-git add modules/desktop/dms.nix modules/desktop/niri.nix README.md
-nrs
-```
-
-Encerre a sessão e entre novamente em Niri para completar a troca de shell.
-Não é necessário atualizar os inputs do flake para instalar o DMS.
+Se o sistema não iniciar corretamente, selecione uma geração anterior no menu
+de boot. O rollback restaura a geração do sistema; não desfaz as edições feitas
+nos arquivos do repositório.

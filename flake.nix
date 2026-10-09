@@ -25,11 +25,7 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    # Integração comunitária, incluindo sua revisão compatível do iNiR.
-    inir-nixos = {
-      url = "github:LATAR-web/inir-nixos";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    ryoku.url = "github:aethctl/Ryoku-on-NixOS";
   };
 
   outputs = inputs:

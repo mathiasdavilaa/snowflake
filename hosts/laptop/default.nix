@@ -1,9 +1,7 @@
 { self, ... }:  { imports = with self.nixosModules; [
     base
-    plasma
-    niri
+    ryoky # Ambiente gráfico; alternativa independente: niri ou plasma.
     flatpak
-    macro
     vm-curator
     nh
     roblox # Complemento opcional para Studio e Luau.
