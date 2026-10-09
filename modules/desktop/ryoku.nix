@@ -10,6 +10,38 @@
     }:
     let
       runtime = inputs.ryoku.packages.${pkgs.stdenv.hostPlatform.system};
+      preferences = pkgs.writeShellApplication {
+        name = "snowflake-ryoku-preferences";
+        runtimeInputs = [ pkgs.coreutils pkgs.jq pkgs.util-linux ];
+        text = ''
+          config_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
+          store="$config_home/ryoku/desktop.json"
+          mkdir -p "$config_home/ryoku"
+
+          # Usa o mesmo lock do Hub e preserva todas as outras preferências.
+          exec 9>"$config_home/ryoku/.desktop.lock"
+          flock 9
+          temporary="$(mktemp "$store.XXXXXXXX")"
+          trap 'rm -f -- "$temporary"' EXIT
+
+          if [ -e "$store" ]; then
+            jq '
+              if type == "object" then
+                .desktop.input.followMouse = 0
+              else
+                error("desktop.json precisa ser um objeto")
+              end
+            ' "$store" > "$temporary"
+          else
+            printf '%s\n' '{"desktop":{"input":{"followMouse":0}}}' > "$temporary"
+          fi
+
+          chmod 0600 "$temporary"
+          if ! cmp -s "$store" "$temporary"; then
+            mv -- "$temporary" "$store"
+          fi
+        '';
+      };
       prepare = pkgs.writeShellScript "snowflake-prepare-ryoku" ''
         set -euo pipefail
 
@@ -144,7 +176,8 @@
             }
           '') monitors;
 
-          # Apenas preferências de entrada. Todos os binds vêm do Ryoku/Hub.
+          # Preferências de entrada e correção dos lançadores de captura no NixOS.
+          # As teclas de captura seguem os padrões do Ryoku.
           "niri/user.kdl".text = ''
             input {
               keyboard {
@@ -153,11 +186,25 @@
                   options "caps:escape"
                 }
               }
+              // O foco é desativado na preferência que gera settings.kdl.
+              // focus-follows-mouse
               mouse { accel-profile "flat"; }
               touchpad {
                 tap
                 natural-scroll
                 dwt
+              }
+            }
+
+            binds {
+              Print {
+                spawn-sh "${pkgs.util-linux}/bin/flock -n -o /tmp/ryoshot.lock ryoku-qs -c ryoshot";
+              }
+              Super+Shift+S {
+                spawn-sh "${pkgs.util-linux}/bin/flock -n -o /tmp/ryoshot.lock ryoku-qs -c ryoshot";
+              }
+              Shift+Print {
+                spawn-sh "${pkgs.util-linux}/bin/flock -n -o /tmp/ryoshot.lock ${pkgs.coreutils}/bin/env RYOSHOT_MODE=monitor ryoku-qs -c ryoshot";
               }
             }
           '';
@@ -179,6 +226,14 @@
             XDG_CONFIG_HOME=${lib.escapeShellArg config.xdg.configHome} \
             XDG_STATE_HOME=${lib.escapeShellArg config.xdg.stateHome} \
             ${prepare}
+        '';
+
+        # Aplica o foco declarativamente antes de gerar os includes do Niri.
+        # Para mudar essa preferência, ajuste followMouse no script acima.
+        home.activation.ryokuPreferences = lib.hm.dag.entryBetween [ "ryokuMaterialize" ] [ "linkGeneration" ] ''
+          run ${pkgs.coreutils}/bin/env \
+            XDG_CONFIG_HOME=${lib.escapeShellArg config.xdg.configHome} \
+            ${preferences}/bin/snowflake-ryoku-preferences
         '';
 
         # Usa o materializador da revisão fixada no flake.lock. Gera a base,
