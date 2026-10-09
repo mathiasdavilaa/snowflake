@@ -1,5 +1,5 @@
 { inputs, ... }: {
-  flake.nixosModules.ryoky =
+  flake.nixosModules.ryoku =
     {
       config,
       pkgs,
@@ -152,8 +152,6 @@
                   layout "us,br"
                   options "caps:escape"
                 }
-                repeat-delay 400
-                repeat-rate 30
               }
               mouse { accel-profile "flat"; }
               touchpad {

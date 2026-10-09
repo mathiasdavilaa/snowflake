@@ -76,12 +76,12 @@ A escolha do ambiente acontece nos imports de `hosts/<perfil>/default.nix`:
 | Módulo | Responsabilidade |
 | --- | --- |
 | `base` | Sistema, Home Manager, boot e programas compartilhados. |
-| `ryoky` | Integração completa do Ryoku e seus overrides pessoais. |
+| `ryoku` | Integração completa do Ryoku e seus overrides pessoais. |
 | `niri` | Sessão Niri independente, com launcher e bloqueio próprios. |
 | `plasma` | Sessão KDE Plasma. |
 | `dms` | Shell opcional para a sessão Niri independente. |
 
-Escolha `ryoky`, `niri` ou `plasma` como base gráfica de cada host. Para usar
+Escolha `ryoku`, `niri` ou `plasma` como base gráfica de cada host. Para usar
 Niri com DMS, escolha `niri` e acrescente `dms`. Os inputs de `flake.nix` apenas
 declaram dependências; um ambiente só é ativado quando seu módulo é importado.
 Hardware, jogos, editor, rede e demais programas seguem os mesmos módulos em
@@ -91,7 +91,7 @@ qualquer escolha.
 
 ### WM e interface
 
-`modules/desktop/ryoky.nix` reúne toda a integração do Ryoku: módulo oficial,
+`modules/desktop/ryoku.nix` reúne toda a integração do Ryoku: módulo oficial,
 sessão principal, aplicativos opcionais, atualização pelo flake, preparação da
 base, overrides de Niri e Ghostty e ativação pelo Home Manager. Niri é o
 compositor principal; Hyprland também é disponibilizado pelo módulo oficial.
@@ -126,17 +126,17 @@ de aceleração plano. No touchpad, toque para clicar e rolagem natural ficam
 habilitados; durante a digitação, o touchpad é desativado.
 
 Essas opções ficam no bloco `input` do módulo do ambiente escolhido:
-`ryoky.nix` ou `niri.nix`.
+`ryoku.nix` ou `niri.nix`.
 
 ### Terminal e arquivos
 
 Ghostty e Fish têm configurações independentes em `modules/programs/`.
 O módulo Fish também disponibiliza Fastfetch quando sua configuração é usada.
 
-Ao escolher Ryoku, `ryoky.nix` deixa o materializador cuidar dos arquivos
+Ao escolher Ryoku, `ryoku.nix` deixa o materializador cuidar dos arquivos
 principais de Fish, Ghostty e Fastfetch. A configuração do Ghostty segue a
 paleta do ambiente, com escolhas pessoais em `ghostty/user.conf`. Esses ajustes
-específicos ficam no próprio `ryoky.nix`; os módulos genéricos continuam
+específicos ficam no próprio `ryoku.nix`; os módulos genéricos continuam
 utilizáveis com outros ambientes.
 
 `nrs` aplica o perfil da máquina; `nru` atualiza as dependências em

@@ -1,6 +1,6 @@
 { self, ... }:  { imports = with self.nixosModules; [
     base
-    ryoky # Ambiente gráfico; alternativa independente: niri ou plasma.
+    ryoku # Ambiente gráfico; alternativa independente: niri ou plasma.
     flatpak
     vm-curator
     nh
