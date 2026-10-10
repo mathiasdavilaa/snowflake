@@ -163,6 +163,194 @@ O desktop usa os módulos de GPU e jogos. Steam, GameMode e MangoHud ficam em
 `modules/system/graphics.nix`. O bootloader é o Limine, configurado em
 `modules/system/boot.nix` e complementado pelos ajustes de cada host.
 
+## Git e SSH (GitHub)
+
+Faça estes passos como seu usuário normal, sem `sudo`. No desktop o usuário
+é `mad`; no laptop é `mathias`. A identidade de autor do Git pode ser a mesma
+nos dois, com uma chave SSH diferente em cada máquina.
+
+### 1. Conferir a identidade do Git
+
+O Home Manager já configura o Git em `modules/programs/git.nix`:
+
+```nix
+user = {
+  name = "mathiasdavila";
+  email = "mathiasaug@proton.me";
+  signingKey = "~/.ssh/id_ed25519.pub";
+};
+```
+
+Para mudar nome ou e-mail, edite esse bloco e faça o rebuild do host. Evite
+`git config --global` para essas opções: a configuração global é gerenciada
+pelo Home Manager. Confira o resultado:
+
+```sh
+git config --get user.name
+git config --get user.email
+git config --get user.signingKey
+git config --get commit.gpgsign
+```
+
+Use um e-mail verificado na sua conta do GitHub, ou o endereço `noreply`
+fornecido nas configurações da conta.
+
+### 2. Criar a chave SSH em cada máquina
+
+Confira primeiro se já existe uma chave:
+
+```sh
+ls -l ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub
+```
+
+Se os arquivos existirem, use a chave atual. Se não existirem:
+
+```sh
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+ssh-keygen -t ed25519 -C "email@email" -f ~/.ssh/id_ed25519
+```
+
+Escolha uma senha para proteger a chave. Se aparecer uma pergunta para
+sobrescrever um arquivo existente, responda `n` e confira a chave atual.
+
+`id_ed25519` é a chave privada: mantenha-a fora do repositório.
+`id_ed25519.pub` é a chave pública: é ela que será cadastrada no GitHub.
+Repita o procedimento em cada host; ambos podem usar o mesmo nome de arquivo,
+pois cada chave fica no diretório pessoal da respectiva máquina.
+
+### 3. Carregar a chave no agente
+
+```sh
+ssh-add ~/.ssh/id_ed25519
+ssh-add -l
+```
+
+Informe a senha da chave quando solicitada. Se aparecer
+`Could not open a connection to your authentication agent`, abra uma sessão
+Fish com um agente temporário e repita os comandos nela:
+
+```sh
+ssh-agent fish
+ssh-add ~/.ssh/id_ed25519
+ssh-add -l
+```
+
+Esse agente vale para essa sessão de terminal. A configuração atual aponta a
+assinatura do Git para a chave pública, então mantenha a chave privada
+correspondente carregada no agente quando fizer commits.
+
+### 4. Cadastrar no GitHub
+
+Mostre e copie a chave pública inteira:
+
+```sh
+cat ~/.ssh/id_ed25519.pub
+```
+
+No GitHub, abra **Settings → SSH and GPG keys → New SSH key** e cadastre a
+chave como **Authentication Key**, com um título que identifique a máquina,
+como `snowflake-laptop` ou `snowflake-desktop`.
+
+Como este flake assina os commits com SSH, cadastre a mesma chave pública
+novamente como **Signing Key**. Autenticação permite acessar o repositório;
+assinatura permite ao GitHub verificar os commits.
+
+Cadastre as chaves dos dois hosts na mesma conta, mantendo títulos separados.
+
+### 5. Testar e usar o remoto SSH
+
+```sh
+ssh -T git@github.com
+```
+
+Na primeira conexão, confira a impressão digital do servidor na documentação
+oficial antes de aceitar. A resposta esperada é uma saudação com seu usuário
+do GitHub e a informação de que o serviço não oferece acesso a shell.
+Esse teste pode retornar código de saída `1` mesmo quando a autenticação funciona.
+
+No checkout existente:
+
+```sh
+cd ~/snowflake
+git remote -v
+git remote set-url origin git@github.com:mathiasdavilaa/snowflake.git
+git ls-remote origin
+```
+
+Se estiver usando um fork, substitua `mathiasdavilaa/snowflake` pelo seu
+repositório. Não é necessário clonar novamente para mudar de HTTPS para SSH.
+
+Para uma instalação nova usando SSH:
+
+```sh
+git clone git@github.com:mathiasdavilaa/snowflake.git ~/snowflake
+```
+
+### 6. Permitir a verificação das assinaturas dos dois hosts
+
+O módulo já habilita `gpg.format = "ssh"` e `commit.gpgsign = true`, mas o
+arquivo `allowed_signers` contém atualmente apenas uma chave pública fixa.
+Esse arquivo serve para verificar assinaturas localmente; não libera acesso
+à conta do GitHub.
+
+Em `modules/programs/git.nix`, substitua o conteúdo do bloco abaixo pelas
+chaves públicas reais do desktop e do laptop. Cada linha começa pelo e-mail
+do autor, seguido do tipo e do conteúdo da chave:
+
+```nix
+home.file.".ssh/allowed_signers".text = ''
+  mathiasaug@proton.me ssh-ed25519 CHAVE_PUBLICA_DO_DESKTOP
+  mathiasaug@proton.me ssh-ed25519 CHAVE_PUBLICA_DO_LAPTOP
+'';
+```
+
+Os textos `CHAVE_PUBLICA_DO_DESKTOP` e `CHAVE_PUBLICA_DO_LAPTOP` são exemplos:
+substitua-os pelo campo longo que começa com `AAAA` na saída de
+`cat ~/.ssh/id_ed25519.pub` de cada máquina. Se usar outro e-mail de autor,
+ajuste também o início das linhas. Somente as chaves públicas entram no flake.
+
+Faça o rebuild em ambos os hosts. Cada um continua assinando com sua própria
+chave local, enquanto os dois passam a reconhecer ambas as assinaturas.
+Não edite `~/.ssh/allowed_signers` diretamente: ele é gerenciado pelo Home Manager.
+
+### 7. Commit e push
+
+```sh
+cd ~/snowflake
+git status
+git add README.md modules/programs/git.nix
+git diff --cached
+git commit -m "docs: configurar Git e SSH"
+git log -1 --show-signature
+git push origin main
+```
+
+Ajuste os arquivos passados ao `git add` conforme a alteração que quiser
+publicar. Faça esses comandos depois de aplicar a configuração e carregar a
+chave no agente. A assinatura local deve identificar uma chave autorizada;
+no GitHub, o commit poderá aparecer como `Verified` quando a chave de assinatura
+e a identidade atenderem aos requisitos da conta.
+
+### GitHub CLI (opcional)
+
+O flake também instala `gh`. Para entrar na conta e escolher SSH:
+
+```sh
+gh auth login --hostname github.com --git-protocol ssh --web
+gh auth status
+```
+
+O login do `gh` é útil para operações da API, como issues e pull requests.
+Ele não substitui o cadastro da chave de assinatura nem o agente SSH.
+
+### Referências
+
+- [Gerar uma chave SSH e adicioná-la ao agente](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+- [Adicionar uma chave de autenticação ou assinatura ao GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+- [Impressões digitais SSH do GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)
+- [Configuração do Git](https://git-scm.com/docs/git-config)
+
 ## Atualizar
 
 Para buscar as versões mais recentes das dependências e aplicá-las:
@@ -192,3 +380,83 @@ sudo nixos-rebuild switch --rollback
 Se o sistema não iniciar corretamente, selecione uma geração anterior no menu
 de boot. O rollback restaura a geração do sistema; não desfaz as edições feitas
 nos arquivos do repositório.
+
+## Desbloqueio facial IR no laptop (Howdy)
+
+O host `laptop` importa `howdy`; o desktop permanece sem esse módulo.
+A câmera IR identificada é `/dev/video2`, com formato GREY, 640×360.
+A configuração usa o caminho persistente em `/dev/v4l/by-id/`.
+
+O módulo usa o Howdy nativo do nixpkgs fixado neste flake e habilita o
+linux-enable-ir-emitter. A integração é específica para a lockscreen qylock
+incluída na revisão atual do Ryoku: uma conversa PAM facial independente
+começa quando o compositor confirma o bloqueio. A senha continua disponível
+em paralelo. A tentativa facial dura até 8 segundos; se falhar, use a senha.
+Uma nova tentativa acontece no próximo bloqueio. Para habilitar também no
+SDDM, acrescente ao módulo `howdy.nix`, junto da configuração PAM:
+
+```nix
+security.pam.services.sddm.howdy = {
+  enable = true;
+  control = "sufficient";
+};
+```
+
+Faça o rebuild do laptop depois da alteração. A senha permanece como alternativa
+no SDDM; sudo e outros serviços continuam com seus métodos anteriores.
+
+Howdy é menos seguro que uma senha, mesmo com câmera IR. Mantenha a senha
+configurada; o projeto alerta que reconhecimento pode ser enganado por uma
+pessoa parecida ou uma foto bem impressa.
+
+### Ativação no laptop
+
+Copie os arquivos atualizados para seu checkout do flake. Antes do rebuild,
+adicione os arquivos novos ao índice do Git (não é necessário fazer commit):
+
+```bash
+cd ~/snowflake
+git add modules/system/howdy.nix modules/system/howdy-ryoku.py hosts/laptop/default.nix
+sudo nixos-rebuild switch --flake .#laptop
+```
+
+Reinicie o laptop para carregar os novos grupos e rematerializar o bloqueador.
+Depois configure o emissor e cadastre o rosto para o usuário do host:
+
+```bash
+nix shell nixpkgs#xhost --command xhost +SI:localuser:root
+sudo env DISPLAY="$DISPLAY" GDK_BACKEND=x11 linux-enable-ir-emitter configure
+sudo systemctl restart linux-enable-ir-emitter
+sudo howdy -U mathias add
+sudo systemd-tmpfiles --create
+sudo env DISPLAY="$DISPLAY" GDK_BACKEND=x11 howdy -U mathias test
+nix shell nixpkgs#xhost --command xhost -SI:localuser:root
+```
+
+Execute os comandos um por vez, no terminal da sessão gráfica. O `xhost`
+libera temporariamente o acesso de root ao Xwayland para as janelas de teste;
+o último comando remove essa autorização. Feche o teste com `Ctrl+C` antes
+de executá-lo. Essa autorização não é necessária para o reconhecimento na
+lockscreen. Se um comando falhar, resolva o erro antes de continuar.
+
+O configurador do emissor é interativo: responda conforme o comportamento
+observado do emissor IR. Se a imagem permanecer escura, confira esse passo
+antes de alterar os limites de reconhecimento. O cadastro fica em
+`/var/lib/howdy/models/mathias.dat`, fora do flake, com acesso restrito ao grupo
+`howdy`. O último comando testa imagem/reconhecimento; o teste definitivo da
+integração deve ser feito bloqueando a sessão normalmente pelo Ryoku.
+
+Se o teste como root funcionar mas o desbloqueio não, confira os grupos na
+sessão (`id`) e as permissões do modelo (`ls -l /var/lib/howdy/models/mathias.dat`).
+O usuário deve pertencer aos grupos `video` e `howdy`, e o modelo deve pertencer
+a `root:howdy` com modo `0640`. Repita `sudo systemd-tmpfiles --create` após
+recadastrar o rosto.
+
+O script aplica a integração depois do materializador do Ryoku. Se uma revisão
+futura mudar os pontos de integração do QML, ele interrompe a aplicação sem
+reescrever parcialmente a lockscreen e exige revisão do script.
+
+Validação desta alteração: conferência dos módulos e opções na revisão fixada
+do nixpkgs/Ryoku, teste de aplicação do patch sobre o QML dessa revisão,
+idempotência e rejeição de QML incompatível. Não foi executado rebuild NixOS
+nem teste físico da câmera no ambiente de edição.

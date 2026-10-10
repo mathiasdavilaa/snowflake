@@ -1,5 +1,6 @@
 { self, ... }:  { imports = with self.nixosModules; [
     base
+    howdy # Reconhecimento facial IR na tela de bloqueio do Ryoku.
     ryoku # Ambiente gráfico; alternativa independente: niri ou plasma.
     flatpak
     vm-curator
