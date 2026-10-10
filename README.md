@@ -460,3 +460,139 @@ Validação desta alteração: conferência dos módulos e opções na revisão 
 do nixpkgs/Ryoku, teste de aplicação do patch sobre o QML dessa revisão,
 idempotência e rejeição de QML incompatível. Não foi executado rebuild NixOS
 nem teste físico da câmera no ambiente de edição.
+
+## Macro de cliques e posição do cursor (Niri + ydotool)
+
+O módulo `macro` é importado pelo `base` nos dois hosts. Habilita `ydotoold`,
+permite ao usuário usar o socket pelo grupo `ydotool` e instala `macro` e
+`cursor-pos`. Após o primeiro `nrs`, encerre a sessão e entre novamente para
+ativar a associação ao grupo (ou reinicie).
+
+### Ver as coordenadas
+
+```sh
+cursor-pos
+```
+
+O terminal atualiza a mesma linha em tempo real, mostrando o monitor, os pixels
+lógicos globais, os pixels locais ao monitor e os valores `x` e `y` em
+porcentagem para usar no macro. Pare com `Ctrl+C`. Para uma saída estruturada,
+use `cursor-pos --json`.
+
+A leitura é compatível com o Niri 26.04 e usa uma camada transparente GTK
+layer-shell sobre os monitores. Ela recebe os eventos reais do cursor em pixels
+lógicos; as origens dos monitores vêm do IPC do Niri. Não precisa de `sudo`,
+`xinput`, `xdotool` ou uma versão de desenvolvimento do compositor.
+
+**Enquanto `cursor-pos` estiver aberto, o mouse interage com a camada de
+medição, e os cliques não chegam às aplicações.** O terminal mantém o foco do
+teclado: use `Ctrl+C` para retirar a camada e voltar a interagir normalmente.
+Este modo serve para medir coordenadas, não para monitorar o cursor em segundo
+plano enquanto você usa outras aplicações. Não foi projetado para Plasma.
+
+O macro mede e move o cursor nessa camada temporária, depois a destrói e espera
+o compositor confirmar a remoção antes de enviar cada clique à aplicação.
+O Niri 26.04 não implementa `ext-image-copy-capture-v1`; por isso não usamos
+esse protocolo nesta versão do módulo.
+
+### Definir a sequência
+
+Na primeira ativação é criado `~/.config/snowflake/macro.json`, editável e
+preservado nos próximos rebuilds. Começa com `points` vazio: não envia cliques
+até você definir a sequência. Abra com:
+
+```sh
+zed ~/.config/snowflake/macro.json
+```
+
+Exemplo de estrutura — substitua os pontos pelos valores do seu `cursor-pos`:
+
+```json
+{
+  "output": "auto",
+  "startDelay": 2,
+  "points": [
+    { "x": 50, "y": 50, "button": "left", "delay": 0.3 },
+    { "x": 75, "y": 80, "button": "left", "delay": 0.5 }
+  ],
+  "hosts": {}
+}
+```
+
+- `x` e `y`: porcentagens de 0 a 100, relativas ao monitor escolhido.
+- `button`: `left`, `right` ou `middle`; o padrão é `left`.
+- `delay`: pausa em segundos **depois** de cada clique; padrão de 0.3.
+- `startDelay`: espera antes da sequência; padrão de 2 segundos.
+- `output`: `auto` usa o monitor da workspace focada ao iniciar o comando.
+  Também aceita um conector específico, como `DP-3` ou `eDP-1`.
+
+Os pontos são recalculados pela resolução lógica real do monitor no momento da
+execução. O centro permanece no centro tanto em 1920×1080 quanto em 1920×1200.
+Isso requer que a interface mantenha os alvos nas mesmas posições proporcionais:
+use a aplicação maximizada/em tela cheia e com o mesmo layout. Se os botões
+mudarem de posição entre os dispositivos, use sequências separadas por host.
+
+### Executar, conferir e interromper
+
+```sh
+macro --dry-run        # Mostra os destinos sem mover o cursor nem clicar.
+macro                  # Executa a sequência uma vez.
+macro --output DP-3     # Escolhe explicitamente o monitor do desktop.
+macro --output eDP-1    # Escolhe explicitamente a tela do laptop.
+macro --stop           # Interrompe a execução, inclusive durante a espera.
+```
+
+`Ctrl+C` também interrompe quando o macro é iniciado no terminal. Não mova o
+mouse enquanto executa: o script envia movimentos pelo ydotool e verifica a
+posição real antes de cada clique. Encerre `cursor-pos` antes de rodar `macro`,
+pois uma camada de medição aberta em outro processo receberia os cliques. Se não chegar ao alvo, encerra com erro sem
+clicar nesse ponto. Só permite uma execução simultânea por usuário. A sequência
+fica vinculada ao monitor escolhido no início e não segue mudanças de foco
+provocadas pelos cliques.
+
+Para usar outro arquivo: `macro --config /caminho/macro.json`.
+
+### Pontos diferentes no laptop e no desktop
+
+É possível copiar o mesmo JSON para ambos os dispositivos e ajustar somente os
+campos necessários em `hosts`. Os nomes são os perfis do flake (`desktop` e
+`laptop`), não os hostnames (`tarnished` e `nixos`). Exemplo:
+
+```json
+{
+  "output": "auto",
+  "startDelay": 2,
+  "points": [],
+  "hosts": {
+    "desktop": {
+      "output": "DP-3",
+      "points": [{ "x": 50, "y": 50, "delay": 0.3 }]
+    },
+    "laptop": {
+      "output": "eDP-1",
+      "points": [{ "x": 52, "y": 48, "delay": 0.3 }]
+    }
+  }
+}
+```
+
+Os números acima são apenas exemplos. Os overrides substituem os campos
+correspondentes da configuração comum; `--output` tem prioridade sobre ambos.
+
+### Atalho opcional no Niri
+
+Acrescente estas linhas ao bloco `binds` de `niri/user.kdl` no módulo Ryoku
+(`modules/desktop/ryoku.nix`), escolhendo teclas livres na sua configuração:
+
+```kdl
+Super+M repeat=false { spawn "macro"; }
+Super+Shift+M repeat=false { spawn "macro" "--stop"; }
+```
+
+Na sessão Niri independente, adicione ao bloco `binds` de
+`modules/desktop/niri.nix`. Os atalhos não são instalados automaticamente para
+não substituir binds do Ryoku.
+
+Se aparecer erro de permissão no socket, confira `id -nG` (deve incluir
+`ydotool`) e `systemctl status ydotoold`. Se o leitor encerrar por uma mudança de
+dispositivos/monitores, execute o comando novamente.
