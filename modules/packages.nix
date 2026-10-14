@@ -1,7 +1,37 @@
-{ inputs, ... }:
-{ flake.nixosModules.packages = { pkgs, lib, profile, ... }:
+{ inputs, ... }: {
+  flake.nixosModules.packages =
+    {
+      pkgs,
+      lib,
+      profile,
+      ...
+    }:
     let
-      # Aplica ao Prism e ao Minecraft a correção de OpenGL/Iris testada na NVIDIA.
+      common = [
+        zenBrowser
+        pkgs.zapzap
+        pkgs.nautilus
+      ];
+
+      desktop = with pkgs; [
+        discord
+        prismLauncher
+        codex
+        bubblewrap
+        quickshell
+      ];
+
+      laptop = with pkgs; [
+        discord
+      ];
+
+      disabled = {
+        desktop = [ ];
+        laptop = [ ];
+      };
+
+      zenBrowser = inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default;
+
       prismLauncher = pkgs.symlinkJoin {
         name = "prismlauncher-minecraft-wayland";
         paths = [ pkgs.prismlauncher ];
@@ -12,7 +42,6 @@
             --set SDL_VIDEO_DRIVER wayland \
             --set __GL_THREADED_OPTIMIZATIONS 0
 
-          # O atalho do menu também precisa executar o Prism com a correção.
           for desktop in ${pkgs.prismlauncher}/share/applications/*.desktop; do
             target="$out/share/applications/$(basename "$desktop")"
             cp --remove-destination "$desktop" "$target"
@@ -26,30 +55,10 @@
         meta = pkgs.prismlauncher.meta;
       };
     in
-    { nixpkgs.config.allowUnfree = true; environment.systemPackages = (with pkgs; [
-          # Desktop e laptop
-          git
-          neovim
-          kitty
-          brave-origin
-          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
-          brightnessctl
-          playerctl
-          fetch
-        ])
-        ++ lib.optionals (profile == "desktop") ( with pkgs; [
-            # Só desktop
-            discord
-            zapzap
-            wev
-            nautilus
-            prismLauncher
-            spotify
-          ]
-        )
-        ++ lib.optionals (profile == "laptop") ( with pkgs; [
-            discord
-          ]
-        );
+    {
+      nixpkgs.config.allowUnfree = true;
+      environment.systemPackages = lib.subtractLists disabled.${profile} (
+        common ++ { inherit desktop laptop; }.${profile}
+      );
     };
 }

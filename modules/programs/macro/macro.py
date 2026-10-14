@@ -13,14 +13,11 @@ import subprocess
 import sys
 import time
 
-
 def niri(command):
     return json.loads(subprocess.check_output(["niri", "msg", "-j", command], text=True))
 
-
 def outputs():
     return {k: v for k, v in niri("outputs").items() if v.get("logical") is not None}
-
 
 def coordinates(name, x, y, screens):
     logical = screens[name]["logical"]
@@ -31,7 +28,6 @@ def coordinates(name, x, y, screens):
         "percent_x": 100 * lx / max(1, logical["width"] - 1),
         "percent_y": 100 * ly / max(1, logical["height"] - 1),
     }
-
 
 class Cursor:
     def __init__(self):
@@ -54,7 +50,7 @@ class Cursor:
                 if name in self.screens:
                     point = coordinates(name, float(x), float(y), self.screens)
                     logical = self.screens[name]["logical"]
-                    # Capture sessions may also report an image overlapping an output edge.
+
                     if 0 <= point["local_x"] < logical["width"] and 0 <= point["local_y"] < logical["height"]:
                         self.current = point
         return self.current
@@ -83,7 +79,7 @@ class Cursor:
     def move(self, name, x, y):
         self.initial()
         for attempt in range(8):
-            # Drain pending samples so displacement is based on the latest event.
+
             while self.selector.select(0):
                 self.update()
             p = self.current
@@ -96,12 +92,10 @@ class Cursor:
                 self.update(min(0.02, max(0, deadline - time.monotonic())))
         raise RuntimeError("Cursor não chegou ao ponto; nenhum clique nesse ponto foi enviado. Não mova o mouse durante o macro.")
 
-
 def number(value, label, low, high):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
         raise ValueError(f"{label} deve ser um número entre {low} e {high}.")
     return value
-
 
 def plan(config, screens, chosen_output, profile):
     override = config.get("hosts", {}).get(profile, {})
@@ -127,13 +121,11 @@ def plan(config, screens, chosen_output, profile):
                        logical["y"] + y / 100 * (logical["height"] - 1), button, delay))
     return name, points, number(merged.get("startDelay", 2), "startDelay", 0, 3600)
 
-
 def lock_path():
     runtime = os.environ.get("XDG_RUNTIME_DIR")
     if not runtime:
         raise RuntimeError("XDG_RUNTIME_DIR não definido. Execute na sua sessão gráfica.")
     return Path(runtime) / "snowflake-macro.lock"
-
 
 @contextlib.contextmanager
 def measurement_lock():
@@ -143,7 +135,6 @@ def measurement_lock():
         except BlockingIOError:
             raise RuntimeError("Já existe um cursor-pos ou macro ativo. Encerre-o antes de continuar.") from None
         yield
-
 
 def stop():
     with lock_path().open("a+") as lock:
@@ -159,7 +150,6 @@ def stop():
                 raise RuntimeError("Não foi possível confirmar o processo do macro.")
             os.kill(pid, signal.SIGTERM)
             print("Macro interrompido.")
-
 
 def run_macro(args):
     if args.stop:
@@ -183,7 +173,7 @@ def run_macro(args):
         lock.flush()
         print(f"Macro em {name}, começando em {delay}s. Ctrl+C ou macro --stop para parar.", flush=True)
         time.sleep(delay)
-        # Abort before any click if monitor geometry changed during the countdown.
+
         if outputs() != screens:
             raise RuntimeError("Os monitores mudaram durante a espera. Execute novamente.")
         for x, y, button, pause in points:
@@ -191,11 +181,10 @@ def run_macro(args):
                 raise RuntimeError("Os monitores mudaram durante o macro. Execute novamente.")
             with contextlib.closing(Cursor()) as cursor:
                 cursor.move(name, x, y)
-            # close() waits until the transparent layer is removed by the compositor.
+
             subprocess.run(["ydotool", "click", {"left": "0xC0", "right": "0xC1", "middle": "0xC2"}[button]], check=True)
             time.sleep(pause)
         print("Macro concluído.")
-
 
 def watch(args):
     with measurement_lock(), contextlib.closing(Cursor()) as cursor:
@@ -214,7 +203,6 @@ def watch(args):
                 print(f"\r\033[2K{p['output']} | global: {p['x']:.0f}, {p['y']:.0f} | "
                       f"local: {p['local_x']:.0f}, {p['local_y']:.0f} | "
                       f"macro: x={p['percent_x']:.3f}, y={p['percent_y']:.3f}", end="", flush=True)
-
 
 def main():
     command = sys.argv[1]
@@ -237,7 +225,6 @@ def main():
         print(f"Erro: {e}", file=sys.stderr)
         return 1
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

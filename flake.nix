@@ -4,13 +4,9 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    dms = {
-      url = "github:AvengeMedia/DankMaterialShell/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:vic/import-tree";
+    sanctuary.url = "github:mathiasdavilaa/sanctuary";
 
     home-manager = {
       url = "github:nix-community/home-manager/master";
@@ -25,10 +21,15 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    ryoku.url = "github:aethctl/Ryoku-on-NixOS";
+    mango = {
+      url = "github:mangowm/mango";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
   };
 
-  outputs = inputs:
+  outputs =
+    inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         (inputs.import-tree ./parts)

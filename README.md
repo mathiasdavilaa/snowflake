@@ -1,167 +1,272 @@
 # snowflake
 
-Configuração declarativa do NixOS organizada em módulos. O flake reúne as
-dependências e as configurações de cada máquina, permitindo compartilhar uma
-base e manter os ajustes de cada host separados.
-
-## Baixar
-
-Com o NixOS instalado e o suporte a flakes habilitado:
-
-```sh
-nix shell nixpkgs#git
-git clone https://github.com/mathiasdavilaa/snowflake.git ~/snowflake
-cd ~/snowflake
-```
-
-Se usar um fork, substitua a URL pela do seu repositório. Você também pode
-baixar o repositório como ZIP e extrair o conteúdo em `~/snowflake`.
-
-## Adaptar à sua máquina
-
-Antes de aplicar, confira o perfil que deseja usar e ajuste o nome do usuário,
-o hostname, o hardware, os discos e as configurações de boot. Use o
-`hardware-configuration.nix` da sua instalação como referência para o host.
-
-Confira também os módulos importados por esse perfil: eles determinam quais
-serviços, programas e ambientes serão ativados.
-
-Mantenha `system.stateVersion` e `home.stateVersion` de acordo com sua
-instalação. Atualizar os pacotes não exige aumentar esses valores.
+Flake NixOS compartilhado entre desktop e laptop, com flake-parts, import-tree
+e Home Manager. As sessões são Hyprland, Niri e MangoWM, com Niri como padrão.
+A sanctuary inicia nas três sessões e fornece launcher, lock, captura e OSD.
+O pacote vem de `github:mathiasdavilaa/sanctuary`, sem pasta local da shell.
 
 ## Aplicar
 
-Para consultar os perfis disponíveis:
+O ZIP contém `snowflake/`. Extraia em uma pasta temporária e copie os arquivos
+para seu checkout atual, preservando `.git` e seus dados pessoais. O repositório
+da sanctuary precisa conter a versão 0.8.3 antes de resolver o novo input.
+
+Na pasta onde você extraiu o ZIP, execute como seu usuário normal:
 
 ```sh
-nix flake show
+cp -a snowflake/. "$HOME/snowflake/"
+cd "$HOME/snowflake"
+git add -A
+nix flake lock
 ```
 
-Aplique a configuração substituindo `PERFIL` pelo nome de uma entrada em
-`nixosConfigurations`:
+O lock mantém as revisões existentes dos outros inputs. `nix flake lock`
+resolve somente o input novo. Após o rebuild, saia da sessão e entre novamente
+para carregar a nova inicialização e os atalhos do compositor.
+
+Aplique somente o comando correspondente à máquina:
+
+| Host | Comando |
+| --- | --- |
+| Desktop | `sudo nixos-rebuild switch --flake ~/snowflake#desktop` |
+| Laptop | `sudo nixos-rebuild switch --flake ~/snowflake#laptop` |
+
+No Fish, `nrs` detecta a máquina e faz o rebuild; `nru` atualiza os inputs.
+
+## Sanctuary
+
+`modules/desktop/sanctuary.nix` importa os módulos NixOS e Home Manager da shell,
+configura PAM e escolhe Ghostty para entradas de terminal. As preferências da
+interface ficam em `~/.config/sanctuary/settings.json`; o flake fornece defaults
+e não substitui as mudanças feitas no painel de settings.
+
+| Tecla | Função |
+| --- | --- |
+| Super+D | Launcher sanctuary |
+| Super+L / tecla de cadeado | Lock sanctuary |
+| Print | Seleção e edição da captura sanctuary |
+| Teclas de volume | Volume com OSD |
+| Teclas de brilho | Brilho com OSD |
+
+Mute e controles de mídia mantêm seus comandos existentes. As capturas nativas
+de tela inteira/janela continuam disponíveis nas teclas específicas que já
+existiam. A shell inicia pelo compositor; não há uma segunda inicialização por
+Home Manager. O agente Polkit da sanctuary assume a autenticação da sessão.
+Swaybg mantém o fundo estático até você configurar um wallpaper na shell.
+
+Para atualizar somente a sanctuary, no diretório do flake:
 
 ```sh
-sudo nixos-rebuild switch --flake ~/snowflake#PERFIL
+nix flake update sanctuary
+nrs
 ```
 
-Repita esse comando depois de editar a configuração. Alterações que dependem
-de uma nova sessão ou da inicialização do sistema exigem sair e entrar
-novamente ou reiniciar.
+Para desativar em uma máquina, remova `sanctuary` dos imports do respectivo
+`hosts/*/default.nix` e faça rebuild. Os comandos de Fuzzel, Swaylock e os
+controles nativos voltam automaticamente naquele host.
 
-Se estiver usando Git, adicione os arquivos novos com `git add` antes do
-rebuild para que sejam incluídos pelo Nix. Não é necessário fazer um commit
-para aplicar alterações locais.
+Os outros painéis estão disponíveis por `sanctuary settings`,
+`sanctuary notifications`, `sanctuary wallpaper`, `sanctuary theme`,
+`sanctuary clipboard` e `sanctuary recorder`.
+
+## Ativar ou desativar programas
+
+| O que editar | Arquivo |
+| --- | --- |
+| Pacotes comuns, por host e exclusões | `modules/packages.nix` |
+| Módulos ativos no desktop | `hosts/desktop/default.nix` |
+| Módulos ativos no laptop | `hosts/laptop/default.nix` |
+| Ferramentas básicas da sessão Wayland | `modules/desktop/common.nix` |
+| Ferramentas e extensões do editor | `modules/programs/zed.nix` |
+| Yazi, Fzf e ferramentas do terminal | `modules/programs/terminal-tools.nix` |
+
+Em `modules/packages.nix`, `common` vale para ambos os hosts; `desktop` e
+`laptop` acrescentam pacotes somente à máquina correspondente. Remova uma
+linha para retirar um pacote dessa lista. Para excluir um pacote comum de
+apenas uma máquina, use `disabled`. Por exemplo, para retirar Zen só do laptop:
+
+```nix
+disabled = {
+  desktop = [ ];
+  laptop = [ zenBrowser ];
+};
+```
+
+Para adicionar um programa apenas no desktop:
+
+```nix
+desktop = with pkgs; [
+  discord
+  prismLauncher
+  mpv
+];
+```
+
+Os módulos configuram e instalam seus próprios programas. Para desativar Zed
+somente no laptop, remova `zed` dos imports de `hosts/laptop/default.nix`.
+Isso retira o editor, a configuração e suas ferramentas daquele host.
+A mesma regra vale para `vm-curator`, `macro`, `ghostty`, `fastfetch`, `nh` e
+os compositores. Para desligar somente Fzf ou Yazi, mude o `enable` desse
+programa em `terminal-tools.nix`. Retirar `fastfetch` dos imports também
+remove sua execução automática no Fish.
+
+`base` fornece Home Manager, boot e a lista de pacotes. Os demais módulos
+aparecem individualmente nos imports de cada host. `roblox` depende de
+`flatpak`: para retirar todo o suporte Flatpak, retire ambos os módulos.
+Mantenha os módulos necessários aos comandos usados nos seus atalhos.
+Faça o rebuild depois de cada alteração.
 
 ## Organização
 
-| Local | Função |
+| Local | Conteúdo |
 | --- | --- |
-| `flake.nix` | Declara as dependências e os pontos de entrada da configuração. |
-| `flake.lock` | Registra as revisões das dependências. |
-| `parts/` | Organiza os perfis e a composição do flake. |
-| `hosts/` | Guarda o hardware e os ajustes específicos de cada máquina. |
-| `modules/` | Reúne configurações reutilizáveis do sistema e dos programas. |
+| `flake.nix` / `flake.lock` | Inputs e revisões |
+| `parts/hosts.nix` | Perfis desktop (`mad`) e laptop (`mathias`) |
+| `hosts/*/default.nix` | Módulos ativos e monitores |
+| `hosts/*/hardware-configuration.nix` | Hardware de cada máquina |
+| `modules/system/` | Base, boot, GPU, jogos e Howdy |
+| `modules/programs/` | Programas e suas configurações |
+| `modules/desktop/` | Sessões e ferramentas Wayland |
+| `assets/` | Shader do cursor e logo de fallback |
 
-Os hosts escolhem os módulos que utilizam pela lista `imports`. Para mudar
-um programa ou serviço, edite o módulo correspondente; para ativar ou remover
-um módulo de um perfil, ajuste seus imports.
+Edite os monitores em cada host; os três compositores usam esses dados.
+Zed mantém suporte configurado a Nix, C e C++. Python continua disponível
+como dependência dos scripts do macro e da configuração do Sober.
 
-As configurações compartilhadas ficam nos módulos. As diferenças entre
-máquinas ficam nos hosts. Depois de qualquer alteração, faça o rebuild do
-perfil desejado.
+## Terminal e Fastfetch
 
-O sistema base e os programas pessoais não dependem de um ambiente gráfico.
-A escolha do ambiente acontece nos imports de `hosts/<perfil>/default.nix`:
+Fish e Ghostty são configurados pelo Home Manager. Fish abre o
+Fastfetch ao iniciar um terminal e mantém `nrs` e `nru`. Ghostty utiliza
+GeistMono Nerd Font.
 
-| Módulo | Responsabilidade |
+Ghostty é o terminal padrão e possui um rastro de cursor implementado por um shader local. O cursor usa
+formato de bloco no prompt. O efeito precisa de Ghostty 1.2 ou mais recente.
+Ele anima a superfície enquanto o terminal está focado, conforme a opção
+`custom-shader-animation` do Ghostty; isso tem custo adicional de renderização.
+Para ajustar velocidade ou intensidade, edite `TRAIL_DURATION` e
+`TRAIL_OPACITY` em `assets/ghostty/cursor-trail.glsl` e faça o rebuild.
+Para desativar o efeito, retire `custom-shader` e `custom-shader-animation`
+das configurações em `modules/programs/ghostty.nix`. Reabra o Ghostty depois
+do primeiro rebuild para carregar a nova configuração.
+
+### Recursos úteis do terminal
+
+Os atalhos de terminal usam Ctrl/Shift; as binds dos compositores com Super
+continuam independentes. Os ajustes ficam em `modules/programs/ghostty.nix`;
+Fzf e a integração do Yazi ficam em `modules/programs/terminal-tools.nix`.
+
+| Ação | Atalho / comando |
 | --- | --- |
-| `base` | Sistema, Home Manager, boot e programas compartilhados. |
-| `ryoku` | Integração completa do Ryoku e seus overrides pessoais. |
-| `niri` | Sessão Niri independente, com launcher e bloqueio próprios. |
-| `plasma` | Sessão KDE Plasma. |
-| `dms` | Shell opcional para a sessão Niri independente. |
+| Nova aba / janela | `Ctrl+Shift+T` / `Ctrl+Shift+N` |
+| Fechar o painel atual | `Ctrl+Shift+W` |
+| Próxima / aba anterior | `Ctrl+Tab` / `Ctrl+Shift+Tab` |
+| Escolher aba 1–9 | `Ctrl+Shift+1` até `Ctrl+Shift+9` |
+| Mover aba | `Ctrl+Shift+Alt+PageUp` / `PageDown` |
+| Split à direita / abaixo | `Ctrl+Shift+E` / `Ctrl+Shift+O` |
+| Focar outro split | `Ctrl+Shift+setas` |
+| Redimensionar split | `Ctrl+Shift+Alt+setas` |
+| Ampliar/restaurar split | `Ctrl+Shift+Z` |
+| Igualar os splits | `Ctrl+Shift+Alt+0` |
+| Copiar seleção / interromper sem seleção | `Ctrl+C` |
+| Copiar / colar | `Ctrl+Shift+C` / `Ctrl+Shift+V` |
+| Copiar link sob o mouse | `Ctrl+Shift+U` |
+| Pular ao prompt anterior / seguinte | `Ctrl+Shift+PageUp` / `PageDown` |
+| Início / fim do histórico | `Ctrl+Shift+Home` / `End` |
+| Exportar e abrir o histórico no Zed | `Ctrl+Shift+H` |
+| Abrir apenas o texto da tela no Zed | `Ctrl+Shift+Alt+H` |
+| Abrir o texto selecionado no Zed | `Ctrl+Shift+Alt+S` |
+| Buscar texto no histórico | `Ctrl+Shift+F` |
+| Paleta de comandos do Ghostty | `Ctrl+Shift+P` |
+| Recarregar a configuração | `Ctrl+Shift+R` |
+| Aumentar / diminuir / resetar fonte em todas as superfícies | `Ctrl+=` ou `Ctrl++` / `Ctrl+-` / `Ctrl+0` |
+| Zoom no teclado numérico | `Ctrl+Num+` / `Ctrl+Num-` / `Ctrl+Num0` |
+| Buscar comandos do Fish com Fzf | `Ctrl+R` |
+| Escolher arquivo com prévia de texto | `Ctrl+T` |
+| Buscar e mudar de diretório | `Alt+C` |
+| Abrir Yazi e voltar na pasta escolhida | `y` |
 
-Escolha `ryoku`, `niri` ou `plasma` como base gráfica de cada host. Para usar
-Niri com DMS, escolha `niri` e acrescente `dms`. Os inputs de `flake.nix` apenas
-declaram dependências; um ambiente só é ativado quando seu módulo é importado.
-Hardware, jogos, editor, rede e demais programas seguem os mesmos módulos em
-qualquer escolha.
+O scrollback tem limite de 32 MiB por superfície. Selecionar texto também o
+copia para o clipboard; a proteção de colagem permanece habilitada. Abas,
+painéis e janelas aproveitam a pasta atual por meio da integração com o Fish.
+A integração SSH ajusta o ambiente remoto e tenta instalar o terminfo do
+Ghostty quando ele estiver ausente, com fallback de compatibilidade. Isso
+não altera suas chaves SSH.
 
-## Ambiente e personalização
+`Ctrl+C` copia quando existe uma seleção; sem seleção, chega normalmente ao
+Fish ou ao programa em execução. `Ctrl+Shift+C` continua disponível para
+copiar. O terminal tem margens internas de 8 pontos. A rolagem usa
+`Shift+PageUp` e `Shift+PageDown`, deixando `PageUp` e `PageDown` disponíveis
+para os editores, o Yazi e outros aplicativos interativos.
 
-### WM e interface
+Para ajustes pessoais sem rebuild, crie `~/.config/ghostty/user.conf` e
+recarregue com `Ctrl+Shift+R`. Esse arquivo é opcional, carrega por último e
+não é gerenciado pelo Home Manager. Por exemplo:
 
-`modules/desktop/ryoku.nix` reúne toda a integração do Ryoku: módulo oficial,
-sessão principal, aplicativos opcionais, atualização pelo flake, preparação da
-base, overrides de Niri e Ghostty e ativação pelo Home Manager. Niri é o
-compositor principal; Hyprland também é disponibilizado pelo módulo oficial.
-O Hub cuida da aparência, das cores, das animações e dos ajustes do compositor.
+```ini
+font-size = 11
+cursor-style = bar
+```
 
-Nesse ambiente, o materializador oficial gera os arquivos necessários depois
-de o Home Manager instalar os overrides. Na primeira ativação, as
-configurações anteriores ficam guardadas em
-`~/.local/state/snowflake/ryoku-base-v1/`; o arquivo `backup-path` indica a pasta.
-Os overrides declarados no módulo têm prioridade sobre ajustes equivalentes
-do Hub. As demais escolhas continuam sob controle da interface.
+O padrão mantém o cursor de bloco com o rastro configurado.
 
-`modules/desktop/niri.nix` fornece uma sessão independente, com Fuzzel como
-launcher e Swaylock para bloqueio. Sua configuração é um único `config.kdl`,
-sem includes externos. Escolher esse módulo no host mantém Niri sem carregar
-o Ryoku. O módulo Plasma também pode ser escolhido como base gráfica.
+No Ghostty 1.3 ou superior, `Ctrl+Shift+F` abre a busca visual nativa e
+`Ctrl+Shift+Alt+T` renomeia uma aba. Em versões anteriores, o atalho de busca
+abre o histórico no Zed; use `Ctrl+F` no editor. A escolha é feita pela versão
+do pacote no flake, sem incluir ações novas em versões que não as suportam.
+Os atalhos de Fzf e o comando `y` funcionam no prompt do Fish; aplicativos
+interativos como editores e multiplexadores têm suas próprias teclas.
 
-### Binds
+Fastfetch conserva as seções Hardware, Software e System Informations. O logo
+pessoal fica em `~/.config/fastfetch/ascii.txt`; o rebuild preserva um arquivo
+existente e cria um logo de fallback quando ele está ausente.
 
-Na sessão Ryoku, o Niri usa os atalhos fornecidos pelo próprio Ryoku e seus
-ajustes pelo Hub. O flake não adiciona substituições pessoais de binds nesse
-ambiente. Consulte os atalhos na interface do Ryoku.
+## Compositores e atalhos
 
-Na sessão Niri independente, os atalhos são definidos em
-`modules/desktop/niri.nix`. `Super` corresponde à tecla Windows.
+| Ação | Niri | Hyprland | MangoWM |
+| --- | --- | --- | --- |
+| Terminal | `Super+Enter` | `Super+Enter` | `Super+Enter` |
+| Arquivos (Yazi) | `Super+E` | `Super+E` | `Super+E` |
+| Abrir aplicativos | `Super+D` | `Super+D` | `Super+D` |
+| Fechar janela | `Super+Q` | `Super+Q` | `Super+Q` |
+| Bloquear | `Super+L` / tecla de cadeado | `Super+L` / tecla de cadeado | `Super+L` / tecla de cadeado |
+| Maximizar / fullscreen | `Super+F` / `Super+Shift+F` | `Super+F` / `Super+Shift+F` | `Super+F` / `Super+Shift+F` |
+| Janela flutuante | `Super+V` | `Super+V` | `Super+V` |
+| Overview | `Super+grave` | — | `Super+grave` |
+| Sair | `Super+Alt+F4` | `Super+Alt+F4` | `Super+Alt+F4` |
 
-### Teclado, mouse e touchpad
+Niri usa seus atalhos de foco, colunas, workspaces e monitores. Volume muda em
+5% e brilho em 10%, com `wpctl`, `brightnessctl` e `playerctl`.
 
-O teclado usa os layouts `us,br`, e `Caps Lock` funciona como `Escape`. A
-repetição começa após 400 ms, a 30 repetições por segundo. O mouse usa um perfil
-de aceleração plano. No touchpad, toque para clicar e rolagem natural ficam
-habilitados; durante a digitação, o touchpad é desativado.
+No Hyprland, as curvas de mola e Bézier animam:
+janelas com `popin 92%`, layers com fade, workspaces horizontais e workspace
+especial vertical. Home Manager escreve `~/.config/hypr/hyprland.lua` e
+gerencia a sessão.
 
-Essas opções ficam no bloco `input` do módulo do ambiente escolhido:
-`ryoku.nix` ou `niri.nix`.
+MangoWM usa o módulo NixOS e o módulo Home Manager oficiais. `Super+1` a
+`Super+9` selecionam tags no monitor atual e `Super+Ctrl+número` move a janela.
+`Super+T` escolhe scroller, `Super+Shift+T` escolhe tile e `Super+R` recarrega
+a configuração. Sua configuração está em `~/.config/mango/config.conf`.
 
-### Terminal e arquivos
+Niri mantém sua captura nativa. Hyprland usa Hyprshot. MangoWM usa Grim/Slurp:
+`Print` ou `Super+Shift+S` seleciona uma área e envia a imagem ao clipboard.
 
-Ghostty e Fish têm configurações independentes em `modules/programs/`.
-O módulo Fish também disponibiliza Fastfetch quando sua configuração é usada.
+## Howdy no laptop
 
-Ao escolher Ryoku, `ryoku.nix` deixa o materializador cuidar dos arquivos
-principais de Fish, Ghostty e Fastfetch. A configuração do Ghostty segue a
-paleta do ambiente, com escolhas pessoais em `ghostty/user.conf`. Esses ajustes
-específicos ficam no próprio `ryoku.nix`; os módulos genéricos continuam
-utilizáveis com outros ambientes.
+Howdy é usado no SDDM do laptop. Swaylock usa senha.
+As configurações de câmera IR e emissor existentes estão em
+`modules/system/howdy.nix`.
 
-`nrs` aplica o perfil da máquina; `nru` atualiza as dependências em
-`~/snowflake`, e `nru ryoku` atualiza apenas esse input. São comandos disponíveis
-em qualquer shell, definidos em `modules/programs/flake-tools.nix`.
+Configure o emissor e cadastre seu rosto, quando necessário:
 
-### Editor
+```sh
+sudo linux-enable-ir-emitter configure
+sudo systemctl restart linux-enable-ir-emitter
+sudo howdy -U mathias add
+sudo howdy -U mathias test
+```
 
-O Zed mantém sua configuração própria em `modules/programs/zed.nix`: tema One
-Dark, ícones Material, fonte GeistMono Nerd Font e indentação padrão de dois
-espaços. A formatação automática fica desabilitada, e a manual permanece
-disponível. O terminal integrado usa Fish e abre no diretório do projeto.
-
-### Monitores, hardware e jogos
-
-Os hosts definem resolução, frequência, escala, posição e orientação dos
-monitores. Com Ryoku, essas escolhas geram `niri/monitors_user.kdl`, que tem
-prioridade sobre o layout automático. Na sessão Niri independente, elas entram
-no próprio `config.kdl`. Para deixar um monitor sob controle do Ryoku, retire
-sua entrada da lista do host. O Plasma usa suas próprias configurações de tela.
-
-O desktop usa os módulos de GPU e jogos. Steam, GameMode e MangoHud ficam em
-`modules/system/optimization.nix`; a GPU é configurada em
-`modules/system/graphics.nix`. O bootloader é o Limine, configurado em
-`modules/system/boot.nix` e complementado pelos ajustes de cada host.
+A senha continua disponível no SDDM. Se mudar de câmera, ajuste `device_path`
+e `services.linux-enable-ir-emitter.device` no módulo antes do rebuild.
 
 ## Git e SSH (GitHub)
 
@@ -351,115 +456,30 @@ Ele não substitui o cadastro da chave de assinatura nem o agente SSH.
 - [Impressões digitais SSH do GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)
 - [Configuração do Git](https://git-scm.com/docs/git-config)
 
-## Atualizar
-
-Para buscar as versões mais recentes das dependências e aplicá-las:
+## Atualizar e voltar à geração anterior
 
 ```sh
 cd ~/snowflake
 nix flake update
-sudo nixos-rebuild switch --flake .#PERFIL
+nrs
 ```
 
-Para atualizar apenas uma dependência, substitua `INPUT` pelo nome declarado
-em `flake.nix`:
+Para atualizar apenas MangoWM, use `nix flake update mango`. Para voltar à
+geração anterior, execute `sudo nixos-rebuild switch --rollback` ou selecione
+a geração no bootloader.
+
+## Verificações
 
 ```sh
-nix flake update INPUT
+nix flake check --no-build
+nix eval .#nixosConfigurations.desktop.config.system.build.toplevel.drvPath
+nix eval .#nixosConfigurations.laptop.config.system.build.toplevel.drvPath
 ```
 
-A atualização modifica `flake.lock`; o rebuild aplica a configuração com as
-novas revisões.
-
-## Voltar à geração anterior
-
-```sh
-sudo nixos-rebuild switch --rollback
-```
-
-Se o sistema não iniciar corretamente, selecione uma geração anterior no menu
-de boot. O rollback restaura a geração do sistema; não desfaz as edições feitas
-nos arquivos do repositório.
-
-## Desbloqueio facial IR no laptop (Howdy)
-
-O host `laptop` importa `howdy`; o desktop permanece sem esse módulo.
-A câmera IR identificada é `/dev/video2`, com formato GREY, 640×360.
-A configuração usa o caminho persistente em `/dev/v4l/by-id/`.
-
-O módulo usa o Howdy nativo do nixpkgs fixado neste flake e habilita o
-linux-enable-ir-emitter. A integração é específica para a lockscreen qylock
-incluída na revisão atual do Ryoku: uma conversa PAM facial independente
-começa quando o compositor confirma o bloqueio. A senha continua disponível
-em paralelo. A tentativa facial dura até 8 segundos; se falhar, use a senha.
-Uma nova tentativa acontece no próximo bloqueio. Para habilitar também no
-SDDM, acrescente ao módulo `howdy.nix`, junto da configuração PAM:
-
-```nix
-security.pam.services.sddm.howdy = {
-  enable = true;
-  control = "sufficient";
-};
-```
-
-Faça o rebuild do laptop depois da alteração. A senha permanece como alternativa
-no SDDM; sudo e outros serviços continuam com seus métodos anteriores.
-
-Howdy é menos seguro que uma senha, mesmo com câmera IR. Mantenha a senha
-configurada; o projeto alerta que reconhecimento pode ser enganado por uma
-pessoa parecida ou uma foto bem impressa.
-
-### Ativação no laptop
-
-Copie os arquivos atualizados para seu checkout do flake. Antes do rebuild,
-adicione os arquivos novos ao índice do Git (não é necessário fazer commit):
-
-```bash
-cd ~/snowflake
-git add modules/system/howdy.nix modules/system/howdy-ryoku.py hosts/laptop/default.nix
-sudo nixos-rebuild switch --flake .#laptop
-```
-
-Reinicie o laptop para carregar os novos grupos e rematerializar o bloqueador.
-Depois configure o emissor e cadastre o rosto para o usuário do host:
-
-```bash
-nix shell nixpkgs#xhost --command xhost +SI:localuser:root
-sudo env DISPLAY="$DISPLAY" GDK_BACKEND=x11 linux-enable-ir-emitter configure
-sudo systemctl restart linux-enable-ir-emitter
-sudo howdy -U mathias add
-sudo systemd-tmpfiles --create
-sudo env DISPLAY="$DISPLAY" GDK_BACKEND=x11 howdy -U mathias test
-nix shell nixpkgs#xhost --command xhost -SI:localuser:root
-```
-
-Execute os comandos um por vez, no terminal da sessão gráfica. O `xhost`
-libera temporariamente o acesso de root ao Xwayland para as janelas de teste;
-o último comando remove essa autorização. Feche o teste com `Ctrl+C` antes
-de executá-lo. Essa autorização não é necessária para o reconhecimento na
-lockscreen. Se um comando falhar, resolva o erro antes de continuar.
-
-O configurador do emissor é interativo: responda conforme o comportamento
-observado do emissor IR. Se a imagem permanecer escura, confira esse passo
-antes de alterar os limites de reconhecimento. O cadastro fica em
-`/var/lib/howdy/models/mathias.dat`, fora do flake, com acesso restrito ao grupo
-`howdy`. O último comando testa imagem/reconhecimento; o teste definitivo da
-integração deve ser feito bloqueando a sessão normalmente pelo Ryoku.
-
-Se o teste como root funcionar mas o desbloqueio não, confira os grupos na
-sessão (`id`) e as permissões do modelo (`ls -l /var/lib/howdy/models/mathias.dat`).
-O usuário deve pertencer aos grupos `video` e `howdy`, e o modelo deve pertencer
-a `root:howdy` com modo `0640`. Repita `sudo systemd-tmpfiles --create` após
-recadastrar o rosto.
-
-O script aplica a integração depois do materializador do Ryoku. Se uma revisão
-futura mudar os pontos de integração do QML, ele interrompe a aplicação sem
-reescrever parcialmente a lockscreen e exige revisão do script.
-
-Validação desta alteração: conferência dos módulos e opções na revisão fixada
-do nixpkgs/Ryoku, teste de aplicação do patch sobre o QML dessa revisão,
-idempotência e rejeição de QML incompatível. Não foi executado rebuild NixOS
-nem teste físico da câmera no ambiente de edição.
+Os arquivos e o Lua foram conferidos localmente. O ambiente usado para preparar
+este ZIP não tinha Nix, Fish, Niri ou MangoWM, portanto o rebuild dos hosts e a
+execução dos compositores precisam ser feitos nas suas máquinas. O input novo
+de MangoWM também é resolvido pelo primeiro `nix flake lock`.
 
 ## Macro de cliques e posição do cursor (Niri + ydotool)
 
@@ -488,7 +508,7 @@ lógicos; as origens dos monitores vêm do IPC do Niri. Não precisa de `sudo`,
 medição, e os cliques não chegam às aplicações.** O terminal mantém o foco do
 teclado: use `Ctrl+C` para retirar a camada e voltar a interagir normalmente.
 Este modo serve para medir coordenadas, não para monitorar o cursor em segundo
-plano enquanto você usa outras aplicações. Não foi projetado para Plasma.
+plano enquanto você usa outras aplicações na sessão Niri.
 
 O macro mede e move o cursor nessa camada temporária, depois a destrói e espera
 o compositor confirmar a remoção antes de enviar cada clique à aplicação.
@@ -581,18 +601,25 @@ correspondentes da configuração comum; `--output` tem prioridade sobre ambos.
 
 ### Atalho opcional no Niri
 
-Acrescente estas linhas ao bloco `binds` de `niri/user.kdl` no módulo Ryoku
-(`modules/desktop/ryoku.nix`), escolhendo teclas livres na sua configuração:
+Acrescente uma tecla livre ao bloco `binds` de `modules/desktop/niri.nix`:
 
 ```kdl
-Super+M repeat=false { spawn "macro"; }
-Super+Shift+M repeat=false { spawn "macro" "--stop"; }
+Super+X repeat=false { spawn "macro"; }
+Super+Shift+X repeat=false { spawn "macro" "--stop"; }
 ```
 
-Na sessão Niri independente, adicione ao bloco `binds` de
-`modules/desktop/niri.nix`. Os atalhos não são instalados automaticamente para
-não substituir binds do Ryoku.
-
 Se aparecer erro de permissão no socket, confira `id -nG` (deve incluir
-`ydotool`) e `systemctl status ydotoold`. Se o leitor encerrar por uma mudança de
-dispositivos/monitores, execute o comando novamente.
+`ydotool`) e `systemctl status ydotoold`. O leitor de posição e os overrides
+do macro continuam destinados ao Niri; não foi feita uma adaptação para os
+outros compositores nesta alteração.
+
+## Referências
+
+- [Atalhos do Ghostty](https://ghostty.org/docs/config/keybind)
+- [Ações do Ghostty](https://ghostty.org/docs/config/keybind/reference)
+- [Opções do Ghostty](https://ghostty.org/docs/config/reference)
+- [Instalação do MangoWM](https://mangowm.github.io/docs/installation/)
+- [Módulos Nix do MangoWM](https://mangowm.github.io/docs/nix-options/)
+- [Regras de monitores do MangoWM](https://mangowm.github.io/docs/configuration/monitors/)
+- [Atalhos do MangoWM](https://mangowm.github.io/docs/bindings/keys/)
+- [Animações do Hyprland](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Animations/)

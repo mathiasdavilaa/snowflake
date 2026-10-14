@@ -17,7 +17,6 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
-
 def main():
     initialized, _ = Gtk.init_check([])
     if not initialized:
@@ -32,7 +31,7 @@ def main():
     mapped = set()
 
     def report(widget, event, name, logical):
-        # Positions from GTK are local logical coordinates of the output surface.
+
         x, y = event.x, event.y
         if 0 <= x < logical["width"] and 0 <= y < logical["height"]:
             print(f"{name}\t{x:.6f}\t{y:.6f}", flush=True)
@@ -79,7 +78,7 @@ def main():
     def quit_cleanly():
         for window in windows:
             window.destroy()
-        # Process all surface destruction before ydotool can send a click.
+
         display.flush()
         display.sync()
         Gtk.main_quit()
@@ -97,7 +96,6 @@ def main():
         window.show_all()
     Gtk.main()
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

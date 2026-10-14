@@ -1,6 +1,9 @@
 {
   flake.nixosModules.boot = { pkgs, ... }: {
-    environment.systemPackages = [ pkgs.sbctl pkgs.efibootmgr ];
+    environment.systemPackages = [
+      pkgs.sbctl
+      pkgs.efibootmgr
+    ];
 
     boot.loader.systemd-boot.enable = false;
     boot.loader.limine = {

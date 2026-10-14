@@ -1,22 +1,38 @@
 { ... }: {
   flake.nixosModules.fish = { pkgs, username, ... }: {
     programs.fish.enable = true;
+
     users.users.${username}.shell = pkgs.fish;
 
     home-manager.users.${username} = { config, lib, ... }: {
+      xdg.configFile."fish/config.fish".force = true;
       programs.fish = {
         enable = true;
-        interactiveShellInit = ''
+        interactiveShellInit = lib.optionalString config.programs.fastfetch.enable ''
           fastfetch
         '';
-        functions.fish_greeting = "";
+        shellAliases = {
+          nru = "nix flake update --flake ~/snowflake";
+        };
+        functions = {
+          fish_greeting = "";
+          nrs = {
+            description = "Rebuild the current NixOS host";
+            body = ''
+              set host (hostnamectl --static 2>/dev/null)
+              switch $host
+                case tarnished desktop
+                  cd ~/snowflake && sudo nixos-rebuild switch --flake ~/snowflake#desktop
+                case laptop nixos
+                  cd ~/snowflake && sudo nixos-rebuild switch --flake ~/snowflake#laptop
+                case '*'
+                  echo "nixos profile not found: $host"
+                  return 1
+              end
+            '';
+          };
+        };
       };
-
-      # Permite assumir a configuração ao trocar de ambiente.
-      xdg.configFile = lib.mkIf config.programs.fish.enable {
-        "fish/config.fish".force = true;
-      };
-      home.packages = lib.mkIf config.programs.fish.enable [ pkgs.fastfetch ];
     };
   };
 }
