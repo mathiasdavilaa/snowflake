@@ -100,6 +100,29 @@
         "type": "github"
       }
     },
+    "marea": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pleamar": [
+          "pleamar"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792015057,
+        "narHash": "sha256-0/dMuH/izW4N56/dzrKGlu8yimDl90Cc6aoJRGzNCpA=",
+        "owner": "k4ditano",
+        "repo": "marea-plm",
+        "rev": "5a24f6a5e254eb3d7605a29fb00e833ddfe1689b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "k4ditano",
+        "repo": "marea-plm",
+        "type": "github"
+      }
+    },
     "nix-flatpak": {
       "locked": {
         "lastModified": 1767983141,
@@ -118,11 +141,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1790185690,
-        "narHash": "sha256-xJ+X4hBtOcAFGBOe5nAMyMUeF9foJBmIOu3NjBqBycU=",
+        "lastModified": 1791734076,
+        "narHash": "sha256-i5qk1kLiit98rRbh1AXmWBNT9QXC/y4l5Wk/u5EdpDQ=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "4975466d324710c576dc11ad614684e6bd8cad8e",
+        "rev": "7fd4004d0511991fff3a0524856a9be09e28c5f0",
         "type": "github"
       },
       "original": {
@@ -163,14 +186,63 @@
         "type": "github"
       }
     },
+    "pleamar": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791976838,
+        "narHash": "sha256-9etU4iDkDE/sesQOVK40ktI4pEDAv/Ypu5nudGAbdRM=",
+        "owner": "k4ditano",
+        "repo": "pleamar",
+        "rev": "953b1b449001d9df1a7e71808d2dc19cd3ef6b13",
+        "type": "github"
+      },
+      "original": {
+        "owner": "k4ditano",
+        "repo": "pleamar",
+        "type": "github"
+      }
+    },
+    "pleamar-wm": {
+      "inputs": {
+        "marea": [
+          "marea"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "pleamar": [
+          "pleamar"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792015059,
+        "narHash": "sha256-I4vtd8gIvm6dmzgg5sNBXBEE/brAmmO0Jt8R1NF0bvs=",
+        "owner": "k4ditano",
+        "repo": "pleamar-wm",
+        "rev": "89030ba209c9b00c9a8853069b12812c364cfa91",
+        "type": "github"
+      },
+      "original": {
+        "owner": "k4ditano",
+        "repo": "pleamar-wm",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
         "home-manager": "home-manager",
         "import-tree": "import-tree",
         "mango": "mango",
+        "marea": "marea",
         "nix-flatpak": "nix-flatpak",
         "nixpkgs": "nixpkgs",
+        "pleamar": "pleamar",
+        "pleamar-wm": "pleamar-wm",
         "sanctuary": "sanctuary",
         "zen-browser": "zen-browser"
       }

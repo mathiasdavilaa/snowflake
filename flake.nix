@@ -26,6 +26,24 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
+
+    pleamar = {
+      url = "github:k4ditano/pleamar";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    marea = {
+      url = "github:k4ditano/marea-plm";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.pleamar.follows = "pleamar";
+    };
+
+    pleamar-wm = {
+      url = "github:k4ditano/pleamar-wm";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.pleamar.follows = "pleamar";
+      inputs.marea.follows = "marea";
+    };
   };
 
   outputs =

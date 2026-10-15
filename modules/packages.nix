@@ -9,8 +9,11 @@
     let
       common = [
         zenBrowser
+        pleamarPackage
         pkgs.zapzap
         pkgs.nautilus
+        pkgs.wget
+        pkgs.mpv
       ];
 
       desktop = with pkgs; [
@@ -31,6 +34,7 @@
       };
 
       zenBrowser = inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      pleamarPackage = inputs.pleamar.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
       prismLauncher = pkgs.symlinkJoin {
         name = "prismlauncher-minecraft-wayland";

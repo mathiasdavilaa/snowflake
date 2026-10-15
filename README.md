@@ -1,15 +1,15 @@
 # snowflake
 
 Flake NixOS compartilhado entre desktop e laptop, com flake-parts, import-tree
-e Home Manager. As sessões são Hyprland, Niri e MangoWM, com Niri como padrão.
-A sanctuary inicia nas três sessões e fornece launcher, lock, captura e OSD.
+e Home Manager. As sessões são Hyprland, Niri, MangoWM e PleamarWM, com Niri como padrão.
+A Sanctuary inicia nas três primeiras; o Marea inicia na sessão PleamarWM.
 O pacote vem de `github:mathiasdavilaa/sanctuary`, sem pasta local da shell.
 
 ## Aplicar
 
 O ZIP contém `snowflake/`. Extraia em uma pasta temporária e copie os arquivos
-para seu checkout atual, preservando `.git` e seus dados pessoais. O repositório
-da sanctuary precisa conter a versão 0.8.3 antes de resolver o novo input.
+para seu checkout atual, preservando `.git` e seus dados pessoais. O ZIP
+já contém os arquivos novos de integração do PleamarWM e do Marea.
 
 Na pasta onde você extraiu o ZIP, execute como seu usuário normal:
 
@@ -17,12 +17,14 @@ Na pasta onde você extraiu o ZIP, execute como seu usuário normal:
 cp -a snowflake/. "$HOME/snowflake/"
 cd "$HOME/snowflake"
 git add -A
-nix flake lock
+nix flake update pleamar marea pleamar-wm
 ```
 
-O lock mantém as revisões existentes dos outros inputs. `nix flake lock`
-resolve somente o input novo. Após o rebuild, saia da sessão e entre novamente
-para carregar a nova inicialização e os atalhos do compositor.
+O `flake.lock` incluído é o original: este ambiente não possui Nix para resolver
+os novos inputs ou executar o build. O comando acima registra PleamarWM e Marea
+e atualiza apenas o runtime Pleamar que compartilham, mantendo os outros inputs.
+Essa atualização do runtime evita compilar o compositor atual com uma versão antiga
+da biblioteca Pleamar. Após o rebuild, saia da sessão e escolha **pleamar-wm** no SDDM.
 
 Aplique somente o comando correspondente à máquina:
 
@@ -32,6 +34,73 @@ Aplique somente o comando correspondente à máquina:
 | Laptop | `sudo nixos-rebuild switch --flake ~/snowflake#laptop` |
 
 No Fish, `nrs` detecta a máquina e faz o rebuild; `nru` atualiza os inputs.
+
+## PleamarWM e Marea
+
+A integração fica em `modules/desktop/pleamar.nix`, importado pelos dois hosts.
+Ela usa o módulo NixOS oficial do PleamarWM com `withMarea = true`, registra a
+sessão no SDDM e instala ambos. Niri permanece como sessão padrão.
+
+Os inputs `pleamar-wm` e `marea` compartilham `nixpkgs` e o runtime `pleamar`.
+O PleamarWM também segue o input `marea` da raiz, evitando cópias independentes.
+Fontes: [PleamarWM](https://github.com/k4ditano/pleamar-wm) e
+[Marea](https://github.com/k4ditano/marea-plm).
+
+O Home Manager gera três arquivos para cada usuário:
+
+| Arquivo | Configuração |
+| --- | --- |
+| `~/.config/pleamar/session.conf` | Monitores do host, teclado `us,br`, Caps como Escape e touchpad |
+| `~/.config/pleamar/keys.conf` | Atalhos oficiais, com os ajustes abaixo |
+| `~/.config/pleamar/autostart` | Marea, fundo estático e agente Polkit, apenas na sessão PleamarWM |
+
+Edite o módulo e faça rebuild para mudar esses arquivos. Se eles já existirem
+como arquivos comuns, o Home Manager os guarda com a extensão `.backup`;
+se já houver um backup com esse nome, mova-o antes de aplicar.
+As preferências internas do Marea continuam sendo administradas pelo próprio Marea.
+
+| Tecla | Função na sessão PleamarWM |
+| --- | --- |
+| Super+Enter / Super+T | Ghostty |
+| Super+E | Yazi no Ghostty |
+| Super+D / Super+Space | Busca do Marea |
+| Super+grave / Super+Tab | Visão geral |
+| Super+W | Alternar entre organização em mosaico e janelas livres |
+| Super+Q | Fechar janela |
+| Super+M / Super+Shift+M | Minimizar / restaurar |
+| Super+1…9 / Super+Shift+1…9 | Workspace / enviar janela, no monitor ativo |
+| Super+L / tecla de cadeado | Bloqueio do Marea |
+| Print / Super+Shift+S | Capturar região pelo Marea |
+| Teclas de volume, brilho e mídia | Controles oficiais do Marea |
+
+O bloqueio tem um serviço PAM próprio, `pleamar`, para autenticar a senha pelo
+NixOS. O agente Polkit usa um caminho absoluto do Nix porque a descoberta padrão
+do projeto procura agentes em diretórios de outras distribuições.
+A Sanctuary continua iniciando apenas em Niri, Hyprland e MangoWM.
+
+Para conferir a configuração e os atalhos dentro da nova sessão:
+
+```sh
+pleamar-wm config
+pleamar-wm keys
+marea status
+```
+
+Para atualizar somente os três projetos integrados:
+
+```sh
+nix flake update pleamar marea pleamar-wm
+nrs
+```
+
+Para testar pelo TTY, saia da sessão gráfica, entre em outro TTY e execute
+`pleamar-session --seconds 45`. Para iniciar normalmente pelo TTY, use
+`pleamar-session`. O log fica em `~/.local/state/pleamar-wm/session.log` e o do
+Marea em `~/.local/state/marea-plm/marea.log`.
+
+Para desativar a integração em um host, remova `pleamar` dos imports do respectivo
+`hosts/*/default.nix` e faça rebuild. Os módulos dos demais compositores continuam
+independentes.
 
 ## Sanctuary
 

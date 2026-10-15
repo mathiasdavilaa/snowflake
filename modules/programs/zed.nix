@@ -45,6 +45,23 @@
             };
           };
 
+          agent = {
+            tool_permissions = {
+              default = "allow";
+
+              tools = {
+                terminal = {
+                  always_confirm = [
+                    { pattern = "sudo\\s"; }
+                    { pattern = "git\\s+push"; }
+                    { pattern = "nixos-rebuild"; }
+                    { pattern = "git\\s+reset\\s+--hard"; }
+                  ];
+                };
+              };
+            };
+          };
+
           theme = {
             mode = "dark";
             dark = "One Dark";
@@ -118,7 +135,7 @@
           ];
 
           project_panel = {
-            dock = "left";
+            dock = "right";
             default_width = 300;
             git_status = true;
           };

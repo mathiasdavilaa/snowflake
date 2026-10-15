@@ -12,6 +12,7 @@
     niri
     hyprland
     mango
+    pleamar
     sanctuary
     flatpak
     vm-curator
