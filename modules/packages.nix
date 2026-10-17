@@ -26,6 +26,7 @@
 
       laptop = with pkgs; [
         discord
+        proton-vpn
       ];
 
       disabled = {
